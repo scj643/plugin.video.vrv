@@ -1,0 +1,38 @@
+# XBMC Media Center language file
+msgid ""
+msgstr ""
+"Project-Id-Version: XBMC-Addons\n"
+"Report-Msgid-Bugs-To: alanwww1@xbmc.org\n"
+"POT-Creation-Date: 2013-07-17 09:48+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+
+msgctxt "#30001"
+msgid "Username"
+msgstr ""
+
+msgctxt "#30002"
+msgid "Password"
+msgstr ""
+
+msgctxt "#30003"
+msgid "Key"
+msgstr ""
+
+msgctxt "#30004"
+msgid "Secret"
+msgstr ""
+
+msgctxt "#30501"
+msgid "General"
+msgstr ""
+
+msgctxt "#30502"
+msgid "Oauth"
+msgstr ""
