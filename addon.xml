@@ -23,7 +23,6 @@
         <assets>
             <icon>resources/icon.png</icon>
             <fanart>resources/fanart.png</fanart>
-            <screenshot></screenshot>
         </assets>
     </extension>
 </addon>
