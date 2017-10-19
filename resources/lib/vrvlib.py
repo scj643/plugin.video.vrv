@@ -151,6 +151,10 @@ class VideoStreams(VRVResponse):
         super(VideoStreams, self).__init__(response)
         self.hls = response['streams']['adaptive_hls']['']['url']
         self.hardsub_locale = response['streams']['adaptive_hls']['']['hardsub_locale']
+        if response['subtitles']:
+            self.en_subtitle = Subtitle(response['subtitles']['en-US'])
+        else:
+            self.en_subtitle = None
 
 
 class Index(VRVResponse):
@@ -207,6 +211,13 @@ class Series(VRVResponse):
 
     def __repr__(self):
         return '<Series: {}>'.format(self.title)
+
+
+class Subtitle(object):
+    def __init__(self, resp):
+        self.url = resp['url']
+        self.format = resp['format']
+        self.locale = resp['locale']
 
 
 def vrv_json_hook(resp):

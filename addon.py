@@ -49,7 +49,10 @@ def episodes(nid):
     eps = vrv_json_hook(session.get_cms(CMS_URL + 'episodes?season_id=' + nid))
     for i in eps.items:
         stream = vrv_json_hook(session.get_cms(i.streams))
-        xbmcplugin.addDirectoryItem(plugin.handle, stream.hls, ListItem(i.title))
+        item = ListItem(i.title)
+        if stream.en_subtitle:
+            item.setSubtitles([stream.en_subtitle.url])
+        xbmcplugin.addDirectoryItem(plugin.handle, stream.hls, item)
     xbmcplugin.endOfDirectory(plugin.handle)
 
 
