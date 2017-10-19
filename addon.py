@@ -26,12 +26,14 @@ session = VRV(__settings__.getSetting('vrv_username'),
               __settings__.getSetting('oauth_key'),
               __settings__.getSetting('oauth_secret'))
 
+
 @plugin.route('/')
 def index():
     items = session.get_watchlist(40)
     for i in items.items:
-        xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(series, i.panel.id), ListItem(i.panel.title), True)
+        xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(series, i.panel.id), ListItem(i.panel.title + ' ' + i.panel.lang), True)
     xbmcplugin.endOfDirectory(plugin.handle)
+
 
 @plugin.route('/series/<nid>')
 def series(nid):
@@ -44,11 +46,12 @@ def series(nid):
 
 @plugin.route('/episodes/<nid>')
 def episodes(nid):
-    eps = vrv_json_hook(session.get_cms(CMS_URL +'episodes?season_id=' + nid))
+    eps = vrv_json_hook(session.get_cms(CMS_URL + 'episodes?season_id=' + nid))
     for i in eps.items:
-        hls = vrv_json_hook(session.get_cms(i.streams)).hls
-        xbmcplugin.addDirectoryItem(plugin.handle, hls, ListItem(i.title))
+        stream = vrv_json_hook(session.get_cms(i.streams))
+        xbmcplugin.addDirectoryItem(plugin.handle, stream.hls, ListItem(i.title))
     xbmcplugin.endOfDirectory(plugin.handle)
+
 
 if __name__ == '__main__':
     plugin.run()

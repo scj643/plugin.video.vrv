@@ -175,6 +175,10 @@ class Panel(VRVResponse):
         self.description = response['description']
         self.resource = self.links['resource']
         self.id = response['id']
+        if response['series_metadata']['is_subbed']:
+            self.lang = '(subbed)'
+        else:
+            self.lang = '(dubbed)'
 
     def __repr__(self):
         return '<Panel: {}>'.format(self.title)
