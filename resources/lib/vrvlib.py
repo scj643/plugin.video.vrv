@@ -94,6 +94,10 @@ class VRVResponse(object):
         self.links = process_links(response['__links__'])
         self.actions = process_links(response['__actions__'])
         self.rclass = response['__class__']
+        if 'images' in response.keys():
+            self.images = Images(response['images'])
+        else:
+            self.images = None
 
     def __repr__(self):
         return '<VRVResponse: {}>'.format(self.rclass)
@@ -199,6 +203,10 @@ class Channel(VRVResponse):
 
 
 class Series(VRVResponse):
+    """
+    A Series object
+    Response should be from the href series
+    """
     def __init__(self, response):
         super(Series, self).__init__(response)
         self.title = response['title']
@@ -220,7 +228,53 @@ class Subtitle(object):
         self.locale = resp['locale']
 
 
+class Images(object):
+    """
+    Object for containing poster info
+    """
+    def __init__(self, resp):
+        if 'poster_wide' in resp.keys():
+            self.wide = [Poster(i) for i in resp['poster_wide'][0]]
+            self._largest_wide()
+        else:
+            self.wide = None
+        if 'poster_tall' in resp.keys():
+            self.tall = [Poster(i) for i in resp['poster_tall'][0]]
+            self._largest_tall()
+        else:
+            self.tall = None
+
+    def _largest_tall(self):
+        mt = max([x.width for x in self.tall])
+        self.largest_tall = [x for x in self.tall if x.width == mt]
+
+    def _largest_wide(self):
+        mw = max([x.width for x in self.wide])
+        self.largest_wide = [x for x in self.wide if x.width == mw]
+
+    def __repr__(self):
+        return '<Images>'
+
+
+class Poster(object):
+    """
+    Object that contains posters
+    """
+    def __init__(self, poster_data):
+        self.kind = poster_data['type']
+        self.width = int(poster_data['width'])
+        self.height = int(poster_data['height'])
+        self.source = poster_data['source']
+
+    def __repr__(self):
+        return '<Poster: {} {}x{}>'.format(self.kind, self.width, self.height)
+
+
 def vrv_json_hook(resp):
+    """
+    :param resp: A dictionary object that has __class__ key
+    :return: matching class for __class__
+    """
     if '__class__' in resp:
         rclass = resp['__class__']
         if rclass == 'collection':
