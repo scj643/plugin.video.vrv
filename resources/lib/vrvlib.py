@@ -150,6 +150,19 @@ class Episode(VRVResponse):
         self.streams = self.links['streams']
         self.id = response['id']
 
+    def kodi_info(self):
+        """
+        Function to create a dictionary for Kodi setInfo
+        :return: Dictionary formatted for Kodi
+        """
+        return {
+            'season': self.season_number,
+            'plot': self.description,
+            'premiered': self.episode_air_date,
+            'mediatype': 'episode',
+            'episode': self.episode_number
+        }
+
     def __repr__(self):
         return '<Episode: {}: {}>'.format(self.title, self.series_title)
 

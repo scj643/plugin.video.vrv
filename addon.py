@@ -55,6 +55,7 @@ def episodes(nid):
         stream = session.get_cms(i.streams)
         li = ListItem(i.title)
         li.setArt(i.images.kodi_setart_dict())
+        li.setInfo('video', i.kodi_info())
         if stream.en_subtitle:
             li.setSubtitles([stream.en_subtitle.url])
         xbmcplugin.addDirectoryItem(plugin.handle, stream.hls, li)
