@@ -1,14 +1,14 @@
-'''
+"""
 addon.py
 Created by scj643 on 10/13/2017
-'''
-import sys
+"""
+import routing
 import xbmc
 import xbmcaddon
-from xbmcgui import ListItem
 import xbmcplugin
 from resources.lib.vrvlib import VRV, vrv_json_hook
-import routing
+from xbmcgui import ListItem
+
 CMS_URL = '/cms/v1/US/M3/alpha,cartoonhangover,crunchyroll,funimation,geekandsundry,mondo,nerdist,roosterteeth,shudder,tested,vrvselect/'
 plugin = routing.Plugin()
 
@@ -38,7 +38,7 @@ def index():
 @plugin.route('/series/<nid>')
 def series(nid):
     xbmc.log('got to series', 4)
-    seasons = vrv_json_hook(session.get_cms(CMS_URL + 'seasons?series_id=' + str(nid)))
+    seasons = session.get_cms(CMS_URL + 'seasons?series_id=' + str(nid))
     for i in seasons.items:
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(episodes, i.id), ListItem(i.title), True)
     xbmcplugin.endOfDirectory(plugin.handle)
@@ -48,7 +48,7 @@ def series(nid):
 def episodes(nid):
     eps = vrv_json_hook(session.get_cms(CMS_URL + 'episodes?season_id=' + nid))
     for i in eps.items:
-        stream = vrv_json_hook(session.get_cms(i.streams))
+        stream = session.get_cms(i.streams)
         item = ListItem(i.title)
         if stream.en_subtitle:
             item.setSubtitles([stream.en_subtitle.url])

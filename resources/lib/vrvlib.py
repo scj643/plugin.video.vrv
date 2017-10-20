@@ -2,9 +2,9 @@
 vrvlib.py
 Created by scj643 on 10/19/2017
 """
-import json
-from requests_oauthlib import OAuth1Session
 from urllib import urlencode
+
+from requests_oauthlib import OAuth1Session
 
 HEADERS = {
     'User-Agent': 'VRV/968 (iPad; iOS 10.2; Scale/2.00)',
@@ -61,9 +61,10 @@ class VRV(object):
         self.session.auth.client.resource_owner_secret = self.auth['oauth_token_secret']
         self.index = Index(self.session.get(self.api_url + self.index_path).json())
 
-    def get_cms(self, path):
+    def get_cms(self, path, match_type=True):
         """
         :param path:
+        :param match_type: use vrv_json_hook after retrieval
         :return: a request that has the CMS args attached
         """
         if '?' not in path:
@@ -72,7 +73,10 @@ class VRV(object):
             path += '&' + urlencode(self.index.cms_signing)
         resp = self.session.get(self.api_url + path)
         if resp.status_code == 200:
-            return resp.json()
+            if match_type:
+                return vrv_json_hook(resp.json())
+            else:
+                return resp.json()
         else:
             return resp
 
