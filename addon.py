@@ -6,7 +6,7 @@ import routing
 import xbmc
 import xbmcaddon
 import xbmcplugin
-from resources.lib.vrvlib import VRV, vrv_json_hook
+from resources.lib.vrvlib import VRV
 from xbmcgui import ListItem
 
 CMS_URL = '/cms/v1/US/M3/alpha,cartoonhangover,crunchyroll,funimation,geekandsundry,mondo,nerdist,roosterteeth,shudder,tested,vrvselect/'
@@ -31,7 +31,9 @@ session = VRV(__settings__.getSetting('vrv_username'),
 def index():
     items = session.get_watchlist(40)
     for i in items.items:
-        xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(series, i.panel.id), ListItem(i.panel.title + ' ' + i.panel.lang), True)
+        li = ListItem(i.panel.title + ' ' + i.panel.lang)
+        li.setArt(i.panel.images.kodi_setart_dict())
+        xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(series, i.panel.id), li, True)
     xbmcplugin.endOfDirectory(plugin.handle)
 
 
@@ -40,19 +42,22 @@ def series(nid):
     xbmc.log('got to series', 4)
     seasons = session.get_cms(CMS_URL + 'seasons?series_id=' + str(nid))
     for i in seasons.items:
+        li = ListItem(i.title)
+        li.setArt(i.images.kodi_setart_dict())
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(episodes, i.id), ListItem(i.title), True)
     xbmcplugin.endOfDirectory(plugin.handle)
 
 
 @plugin.route('/episodes/<nid>')
 def episodes(nid):
-    eps = vrv_json_hook(session.get_cms(CMS_URL + 'episodes?season_id=' + nid))
+    eps = session.get_cms(CMS_URL + 'episodes?season_id=' + nid)
     for i in eps.items:
         stream = session.get_cms(i.streams)
-        item = ListItem(i.title)
+        li = ListItem(i.title)
+        li.setArt(i.images.kodi_setart_dict())
         if stream.en_subtitle:
-            item.setSubtitles([stream.en_subtitle.url])
-        xbmcplugin.addDirectoryItem(plugin.handle, stream.hls, item)
+            li.setSubtitles([stream.en_subtitle.url])
+        xbmcplugin.addDirectoryItem(plugin.handle, stream.hls, li)
     xbmcplugin.endOfDirectory(plugin.handle)
 
 

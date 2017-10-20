@@ -52,7 +52,7 @@ class VRV(object):
         self.cms_index = None
         if email and password:
             self.login(email, password)
-            self.cms_index = VRVResponse(self.get_cms(self.index.links['cms_index.v2']))
+            self.cms_index = self.get_cms(self.index.links['cms_index.v2'])
 
     def login(self, email=None, password=None):
         j = {'email': email, 'password': password}
@@ -239,22 +239,66 @@ class Images(object):
     def __init__(self, resp):
         if 'poster_wide' in resp.keys():
             self.wide = [Poster(i) for i in resp['poster_wide'][0]]
-            self._largest_wide()
+            self.largest_wide = self._largest(self.wide)
+            self.medium_wide = self._middle(self.wide)
         else:
             self.wide = None
+            self.largest_wide = None
+            self.medium_wide = None
+
         if 'poster_tall' in resp.keys():
             self.tall = [Poster(i) for i in resp['poster_tall'][0]]
-            self._largest_tall()
+            self.largest_tall = self._largest(self.tall)
+            self.medium_tall = self._middle(self.tall)
         else:
             self.tall = None
+            self.largest_tall = None
+            self.medium_tall = None
 
-    def _largest_tall(self):
-        mt = max([x.width for x in self.tall])
-        self.largest_tall = [x for x in self.tall if x.width == mt]
+        if 'thumbnail' in resp.keys():
+            self.thumbnail = [Poster(i) for i in resp['thumbnail'][0]]
+            self.largest_thumbnail = self._largest(self.thumbnail)
+            self.medium_thumbnail = self._middle(self.thumbnail)
+        else:
+            self.thumbnail = None
+            self.largest_thumbnail = None
+            self.medium_thumbnail = None
 
-    def _largest_wide(self):
-        mw = max([x.width for x in self.wide])
-        self.largest_wide = [x for x in self.wide if x.width == mw]
+    @staticmethod
+    def _largest(items):
+        """
+        :param items: items to get the largest from
+        :return: None
+        """
+        m = max([x.width for x in items])
+        large = [x for x in items if x.width == m]
+        if large:
+            return large[0]
+        else:
+            return None
+
+    @staticmethod
+    def _middle(items):
+        """
+        :param items: items to get the middle from
+        :return: None
+        """
+        ls = sorted(items, key=lambda image: image.width)
+        return ls[int(len(ls) / 2)]
+
+    def kodi_setart_dict(self):
+        """
+        Helper function for working with ListItem.setArt
+        :return: a dictionary formatted for Kodi
+        """
+        outdict = {}
+        if self.tall:
+            outdict['poster'] = self.medium_tall.source
+        if self.wide:
+            outdict['banner'] = self.medium_wide.source
+        if self.thumbnail:
+            outdict['thumb'] = self.medium_thumbnail.source
+        return outdict
 
     def __repr__(self):
         return '<Images>'
