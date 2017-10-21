@@ -81,7 +81,7 @@ class VRV(object):
             return resp
 
     def get_watchlist(self, page_length=20):
-        url = '{api}{accounts}/{uid}/watchlist?page_size={length}'.format(
+        url = '{api}{accounts}/{uid}/watchlist?page_size={length}&version=v2'.format(
             api=self.api_url, accounts=self.links['accounts'],
             uid=self.auth['account_id'], length=page_length)
         return vrv_json_hook(self.session.get(url).json())
@@ -149,6 +149,11 @@ class Episode(VRVResponse):
         self.is_mature = response['is_mature']
         self.streams = self.links['streams']
         self.id = response['id']
+        self.series_id = response['series_id']
+        if 'next_episode_id' in response.keys():
+            self.next_episode_id = response['next_episode_id']
+        else:
+            self.next_episode_id = None
 
     def kodi_info(self):
         """

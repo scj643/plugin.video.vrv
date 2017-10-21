@@ -9,7 +9,7 @@ import xbmcplugin
 from resources.lib.vrvlib import VRV
 from xbmcgui import ListItem
 
-CMS_URL = '/cms/v1/US/M3/alpha,cartoonhangover,crunchyroll,funimation,geekandsundry,mondo,nerdist,roosterteeth,shudder,tested,vrvselect/'
+CMS_URL = '/cms/v2/US/M3/alpha,cartoonhangover,crunchyroll,funimation,geekandsundry,mondo,nerdist,roosterteeth,shudder,tested,vrvselect/'
 plugin = routing.Plugin()
 
 _plugId = "plugin.video.vrv"
