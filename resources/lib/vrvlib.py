@@ -2,7 +2,7 @@
 vrvlib.py
 Created by scj643 on 10/19/2017
 """
-from urllib import urlencode
+from urllib import urlencode, quote
 
 from requests_oauthlib import OAuth1Session
 
@@ -113,6 +113,22 @@ class Collection(VRVResponse):
         # self.resource_key = response['__resource_key__']
         self.items = [vrv_json_hook(x) for x in response['items']]
 
+    def get_play_heads(self, vrv_session):
+        ids = []
+        for i in self.items:
+            if type(i) == Episode:
+                ids += [i.id]
+        id_string = ''
+        if ids:
+            for i in ids:
+                id_string += '{},'.format(i)
+            id_string = quote(id_string[0:-1])  # Remove trailing , and encode , to url format
+            request_string = '/core/accounts/{}' \
+                             '/playheads?mode=content&content_ids={}'.format(vrv_session.auth['account_id'], id_string)
+            return vrv_json_hook(vrv_session.session.get(vrv_session.api_url + request_string).json())
+        else:
+            return None
+
 
 class Season(VRVResponse):
     def __init__(self, response):
@@ -167,6 +183,25 @@ class Episode(VRVResponse):
             'mediatype': 'episode',
             'episode': self.episode_number
         }
+
+    def post_play_head(self, vrv_session, position):
+        post_url = '{}/core/accounts/{}/playheads'.format(vrv_session.api_url, vrv_session.auth['account_id'])
+        post_data = {'content_id': self.id, 'playhead': position}
+        vrv_session.session.post(post_url, data=post_data)
+
+    def get_play_head(self, vrv_session):
+        """
+        Attempt to get play head information
+        :param vrv_session:
+        :return: Either None or a PlayHead object
+        """
+        request_string = '/core/accounts/{}' \
+                         '/playheads?mode=content&content_ids={}'.format(vrv_session.auth['account_id'], self.id)
+        play_head_collection = vrv_json_hook(vrv_session.session.get(vrv_session.api_url + request_string).json())
+        if play_head_collection.items:
+            return play_head_collection.items[0]
+        else:
+            return None
 
     def __repr__(self):
         return '<Episode: {}: {}>'.format(self.title, self.series_title)
@@ -241,6 +276,17 @@ class Series(VRVResponse):
 
     def __repr__(self):
         return '<Series: {}>'.format(self.title)
+
+
+class PlayHead(VRVResponse):
+    def __init__(self, response):
+        super(PlayHead, self).__init__(response)
+        self.completion_status = response['completion_status']
+        self.position = response['playhead']
+        self.content_id = response['content_id']
+
+    def __repr__(self):
+        return '<PlayHead: {} at {}>'.format(self.content_id, self.position)
 
 
 class Subtitle(object):
@@ -361,5 +407,7 @@ def vrv_json_hook(resp):
             return Panel(resp)
         elif rclass == 'series':
             return Series(resp)
+        elif rclass == 'playhead':
+            return PlayHead(resp)
     else:
         return resp
