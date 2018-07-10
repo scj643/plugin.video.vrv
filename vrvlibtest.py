@@ -17,15 +17,9 @@ if email and password:
     #series = session.get_cms(wl_items[0].panel.resource)
     channels_data = session.get_cms(session.links['channels'])
 
-<<<<<<< HEAD
     #movie_listing = session.get_cms(wl_items['G6JQ2DXXR'].panel.links['resource'])
     nid = 'G6JQ2DXXR'
     movie_listing = session.get_cms(cms_url + 'movie_listings/' + nid)
-=======
-    movie_listing = session.get_cms(wl_items['G6JQ2DXXR'].panel.links['resource'])
-    nid = 'G6JQ2DXXR'
-    movies_list = session.get_cms(cms_url + 'movie_listings/' + nid)
->>>>>>> 3f87aee2930183ff3964ed51851f646d4975c6f6
     print(movie_listing)
     movies = session.get_cms(movie_listing.movies_path)
     print(movies.items)
