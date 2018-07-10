@@ -104,7 +104,7 @@ class VRVResponse(object):
             self.images = None
 
     def __repr__(self):
-        return '<VRVResponse: {}>'.format(self.rclass)
+        return u'<VRVResponse: {}>'.format(self.rclass)
 
 
 class Collection(VRVResponse):
@@ -146,7 +146,7 @@ class Season(VRVResponse):
         self.episodes_path = self.links['season/episodes']
 
     def __repr__(self):
-        return '<Season: {}>'.format(self.title)
+        return u'<Season: {}>'.format(self.title)
 
 
 class MovieListing(VRVResponse):
@@ -162,7 +162,7 @@ class MovieListing(VRVResponse):
         self.movies_path = self.links['movie_listing/movies']
 
     def __repr__(self):
-        return '<MovieListing: {}>'.format(self.title)
+        return u'<MovieListing: {}>'.format(self.title)
 
 
 class Episode(VRVResponse):
@@ -220,7 +220,7 @@ class Episode(VRVResponse):
             return None
 
     def __repr__(self):
-        return '<Episode: {}: {}>'.format(self.title, self.series_title)
+        return u'<Episode: {}: {}>'.format(self.title, self.series_title)
 
 class Movie(VRVResponse):
     def __init__(self, response):
@@ -267,16 +267,19 @@ class Movie(VRVResponse):
             return None
 
     def __repr__(self):
-        return '<Movie: {}>'.format(self.title)
+        return u'<Movie: {}>'.format(self.title)
 
 
 
 
 class VideoStreams(VRVResponse):
     def __init__(self, response):
+        stream_key = 'adaptive_hls'
+        #stream_key = 'multitrack_adaptive_hls_v2'
+        #stream_key = 'drm_adaptive_hls'
         super(VideoStreams, self).__init__(response)
-        self.hls = response['streams']['adaptive_hls']['']['url']
-        self.hardsub_locale = response['streams']['adaptive_hls']['']['hardsub_locale']
+        self.hls = response['streams'][stream_key]['']['url']
+        self.hardsub_locale = response['streams'][stream_key]['']['hardsub_locale']
         if response['subtitles']:
             self.en_subtitle = Subtitle(response['subtitles']['en-US'])
         else:
@@ -295,7 +298,7 @@ class WatchlistItem(VRVResponse):
         self.panel = Panel(response['panel'])
 
     def __repr__(self):
-        return '<WatchlistItem: {}>'.format(self.panel.title)
+        return u'<WatchlistItem: {}>'.format(self.panel.title)
 
 
 class Panel(VRVResponse):
@@ -314,7 +317,7 @@ class Panel(VRVResponse):
             self.lang = '(dubbed)'
 
     def __repr__(self):
-        return '<Panel: {}>'.format(self.title)
+        return u'<Panel: {}>'.format(self.title)
 
 
 class Channel(VRVResponse):
@@ -326,7 +329,7 @@ class Channel(VRVResponse):
         self.cms_id = response.get('cms_id')
 
     def __repr__(self):
-        return '<Channel: {}>'.format(self.name)
+        return u'<Channel: {}>'.format(self.name)
 
 
 class Series(VRVResponse):
@@ -346,7 +349,7 @@ class Series(VRVResponse):
         self.id = response['id']
 
     def __repr__(self):
-        return '<Series: {}>'.format(self.title)
+        return u'<Series: {}>'.format(self.title)
 
 
 class PlayHead(VRVResponse):
@@ -357,7 +360,7 @@ class PlayHead(VRVResponse):
         self.content_id = response['content_id']
 
     def __repr__(self):
-        return '<PlayHead: {} at {}>'.format(self.content_id, self.position)
+        return u'<PlayHead: {} at {}>'.format(self.content_id, self.position)
 
 
 class Subtitle(object):
@@ -450,7 +453,7 @@ class Poster(object):
         self.source = poster_data['source']
 
     def __repr__(self):
-        return '<Poster: {} {}x{}>'.format(self.kind, self.width, self.height)
+        return u'<Poster: {} {}x{}>'.format(self.kind, self.width, self.height)
 
 class UnknownType(VRVResponse):
     """
@@ -462,7 +465,7 @@ class UnknownType(VRVResponse):
         self.api_class = resp.get('__class__', 'no class')
         
     def __repr__(self):
-        return '<vrvlib UnknownType: {}:{}>'.format(self.title,self.api_class)
+        return u'<vrvlib UnknownType: {}:{}>'.format(self.title,self.api_class)
 
 
 def vrv_json_hook(resp):

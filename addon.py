@@ -2,6 +2,8 @@
 addon.py
 Created by scj643 on 10/13/2017
 """
+
+import m3u8
 import routing
 import xbmc
 import xbmcaddon
@@ -43,7 +45,7 @@ def index():
 def watchlist():
     items = session.get_watchlist(40)
     for i in items.items:
-        li = ListItem(i.panel.title + ' (' + capwords(i.panel.lang) + ') (' + capwords(i.panel.channel_id) + ')')
+        li = ListItem(i.panel.title + ' ' + capwords(i.panel.lang) + ' (' + capwords(i.panel.channel_id) + ')')
         li.setArt(i.panel.images.kodi_setart_dict())
         if i.panel.ptype == "series":
             xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(series, i.panel.id), li, True)
@@ -143,7 +145,16 @@ def episodes(nid):
         li.setInfo('video', i.kodi_info())
         if stream.en_subtitle:
             li.setSubtitles([stream.en_subtitle.url])
-        xbmcplugin.addDirectoryItem(plugin.handle, stream.hls, li)
+        pl_parse = m3u8.load(stream.hls)
+        current_max_res = 0
+        current_uri = ''
+        for playlist in pl_parse.playlists:
+            res = playlist.stream_info.resolution
+            if res[1] > current_max_res:
+                current_max_res = res[1]
+                current_uri = playlist.uri
+        if current_uri:
+            xbmcplugin.addDirectoryItem(plugin.handle, current_uri, li)
     xbmcplugin.endOfDirectory(plugin.handle)
 
 
