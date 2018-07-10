@@ -149,6 +149,22 @@ class Season(VRVResponse):
         return '<Season: {}>'.format(self.title)
 
 
+class MovieListing(VRVResponse):
+    def __init__(self, response):
+        super(MovieListing, self).__init__(response)
+        self.id = response['id']
+        self.channel = response['channel_id']
+        self.description = response['description']
+        self.is_mature = response['is_mature']
+        self.subbed = response['is_subbed']
+        self.dubbed = response['is_dubbed']
+        self.title = response['title']
+        self.movies_path = self.links['movie_listing/movies']
+
+    def __repr__(self):
+        return '<MovieListing: {}>'.format(self.title)
+
+
 class Episode(VRVResponse):
     def __init__(self, response):
         super(Episode, self).__init__(response)
@@ -206,6 +222,55 @@ class Episode(VRVResponse):
     def __repr__(self):
         return '<Episode: {}: {}>'.format(self.title, self.series_title)
 
+class Movie(VRVResponse):
+    def __init__(self, response):
+        super(Movie, self).__init__(response)
+        self.title = response['title']
+        self.media_type = response['media_type']
+        self.description = response['description']
+        self.duration_ms = response['duration_ms']
+        self.is_mature = response['is_mature']
+        self.streams = self.links['streams']
+        self.id = response['id']
+        if 'next_episode_id' in response.keys():
+            self.next_episode_id = response['next_episode_id']
+        else:
+            self.next_episode_id = None
+
+    def kodi_info(self):
+        """
+        Function to create a dictionary for Kodi setInfo
+        :return: Dictionary formatted for Kodi
+        """
+        return {
+            'plot': self.description,
+            'mediatype': 'movie'
+        }
+
+    def post_play_head(self, vrv_session, position):
+        post_url = '{}/core/accounts/{}/playheads'.format(vrv_session.api_url, vrv_session.auth['account_id'])
+        post_data = {'content_id': self.id, 'playhead': position}
+        vrv_session.session.post(post_url, data=post_data)
+
+    def get_play_head(self, vrv_session):
+        """
+        Attempt to get play head information
+        :param vrv_session:
+        :return: Either None or a PlayHead object
+        """
+        request_string = '/core/accounts/{}' \
+                         '/playheads?mode=content&content_ids={}'.format(vrv_session.auth['account_id'], self.id)
+        play_head_collection = vrv_json_hook(vrv_session.session.get(vrv_session.api_url + request_string).json())
+        if play_head_collection.items:
+            return play_head_collection.items[0]
+        else:
+            return None
+
+    def __repr__(self):
+        return '<Movie: {}>'.format(self.title)
+
+
+
 
 class VideoStreams(VRVResponse):
     def __init__(self, response):
@@ -240,7 +305,10 @@ class Panel(VRVResponse):
         self.description = response['description']
         self.resource = self.links['resource']
         self.id = response['id']
-        if response['series_metadata']['is_subbed']:
+        self.channel_id = response.get('channel_id')
+        self.ptype = response.get('type')
+        
+        if response.get('series_metadata',dict()).get('is_subbed'):
             self.lang = '(subbed)'
         else:
             self.lang = '(dubbed)'
@@ -252,8 +320,10 @@ class Panel(VRVResponse):
 class Channel(VRVResponse):
     def __init__(self, response):
         super(Channel, self).__init__(response)
-        self.name = response['name']
+        self.name = response.get('name',response.get('id'))
         self.description = response['description']
+        self.id = response.get('id')
+        self.cms_id = response.get('cms_id')
 
     def __repr__(self):
         return '<Channel: {}>'.format(self.name)
@@ -272,6 +342,7 @@ class Series(VRVResponse):
         self.keywords = response['keywords']
         self.season_count = response['season_count']
         self.seasons_href = self.links['series/seasons']
+        self.channel_id = response['channel_id']
         self.id = response['id']
 
     def __repr__(self):
@@ -381,6 +452,18 @@ class Poster(object):
     def __repr__(self):
         return '<Poster: {} {}x{}>'.format(self.kind, self.width, self.height)
 
+class UnknownType(VRVResponse):
+    """
+    Catchall class meant for debugging
+    """
+    def __init__(self, resp):
+        super(UnknownType, self).__init__(resp)
+        self.title = resp.get('title', 'no title')
+        self.api_class = resp.get('__class__', 'no class')
+        
+    def __repr__(self):
+        return '<vrvlib UnknownType: {}:{}>'.format(self.title,self.api_class)
+
 
 def vrv_json_hook(resp):
     """
@@ -393,15 +476,19 @@ def vrv_json_hook(resp):
             return Collection(resp)
         elif rclass == 'season':
             return Season(resp)
+        elif rclass == 'movie_listing':
+            return MovieListing(resp)
         elif rclass == 'episode':
             return Episode(resp)
+        elif rclass == 'movie':
+            return Movie(resp)
         elif rclass == 'video_streams':
             return VideoStreams(resp)
         elif rclass == 'index':
             return Index(resp)
         elif rclass == 'watchlist_item':
             return WatchlistItem(resp)
-        elif rclass == 'channel':
+        elif rclass == 'channel' or rclass == 'core.channel':
             return Channel(resp)
         elif rclass == 'panel':
             return Panel(resp)
@@ -409,5 +496,7 @@ def vrv_json_hook(resp):
             return Series(resp)
         elif rclass == 'playhead':
             return PlayHead(resp)
+        else:
+            return UnknownType(resp)
     else:
-        return resp
+        return UnknownType(resp)
