@@ -23,13 +23,38 @@ if email and password:
     print(movie_listing)
     movies = session.get_cms(movie_listing.movies_path)
     print(movies.items)
+
+
+    import urllib
+    query = raw_input("Search for: ")
+    search_url = search_url = session.cms_index.links['search_results']
+    search_terms = {'q': query, 'n': 50, 'start': '.' + str(0)}
+    search_res = session.get_cms(search_url + '?' + urllib.urlencode(search_terms))
+
+    # we have a status_code variable (it's a Response object, not a collection like we had hoped), check it to make sure
+    # but assume failure if the code doesn't come back exactly 200 (HTTP OK)
+    if 'status_code' in search_res.__dict__ and search_res.status_code != 200:
+        print("Search API call failed. It's not you, it's me.")
+    else: #it didn't fail
+        print("Search API call came back OK. Results:")
+        for result_item in search_res.items:
+            print(result_item.title)
+
+
+    """import m3u8
+
+    pl_obj = m3u8.load()
     
-    ch_data = session.get_cms(channels_data.items[1].links['channel/cms_channel'])
+    for pl in pl_obj.playlists:
+        print(pl)
+    """
+    """ch_data = session.get_cms(channels_data.items[1].links['channel/cms_channel'])
     ch_series = session.get_cms(ch_data.links['channel/series'])
     ch_series_list = list()         
     limit = 20
     index = 0
-    while 'continuation' in ch_series.links:                              
+    """
+    """while 'continuation' in ch_series.links:                              
         for item in ch_series.items:
             ch_series_list.append(item)
             print(u"Fetched {} \"{}\" from channel \"{}\" with ID {}".format(item.ptype, item.title, item.channel_id, item.id))
@@ -44,3 +69,4 @@ if email and password:
         #    ch_series = session.get_cms(ch_data.links.get('continuation'))
         #else:
         #    break
+    """

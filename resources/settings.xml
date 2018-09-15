@@ -8,4 +8,8 @@
         <setting id="oauth_key" type="text" label="30003" option="hidden" default="RHUPiy8MFEj6z0tIu46cU2bAQu9DVRQWZ87838TEhsN1JpevcqtzL1J9rF3f"/>
         <setting id="oauth_secret" type="text" label="30004" option="hidden" default="6g5Pp1jfY7HlZE79InmGJqhsYJWYBJAkm4sgJHdwdTnKbxJIiccusrtyokVr"/>
     </category>
+    <category label="30503">
+        <setting id="adaptive_mode" type="bool" label="30005" default="false"/>
+        <setting id="resolution" type="select" label="30006" values="1080|720|480|360"/>
+    </category>
 </settings>
