@@ -1,12 +1,11 @@
 import xbmc
 import vrvlib
 
-class VRVPlayer(xbmc.Player) :
+class VRVPlayer(xbmc.Player):
 
-    def __init__ (self, play_object, session):
+    def __init__ (self, session):
         xbmc.Player.__init__(self)
         self.session = session
-        self.play_object = play_object
         self.position = 0
 
     def onPlayBackStarted(self):
@@ -19,7 +18,7 @@ class VRVPlayer(xbmc.Player) :
         pass
 
     def onPlayBackStopped(self):
-        #play_object.
+        xbmc.log("VRVPlayer: Playback stopped at %s" % (self.getTime()), xbmc.LOGNOTICE)
         pass
 
     def onPlayBackPaused(self):

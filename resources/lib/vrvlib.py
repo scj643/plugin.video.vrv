@@ -80,10 +80,20 @@ class VRV(object):
         else:
             return response
 
-    def get_watchlist(self, page_length=20):
-        url = '{api}{accounts}/{uid}/watchlist?page_size={length}&version=v2'.format(
+    def get_url(self, path, match_type=True):
+        response = self.session.get(path)
+        if response.status_code == 200:
+            if match_type:
+                return vrv_json_hook(response.json())
+            else:
+                return response.json()
+        else:
+            return response
+
+    def get_watchlist(self, page_length=20, page=1):
+        url = '{api}{accounts}/{uid}/watchlist?page_size={length}&page={page}&version=v2'.format(
             api=self.api_url, accounts=self.links.get('accounts'),
-            uid=self.auth['account_id'], length=page_length)
+            uid=self.auth['account_id'], length=page_length, page=page)
         return vrv_json_hook(self.session.get(url).json())
 
 
@@ -313,6 +323,10 @@ class Index(VRVResponse):
         super(Index, self).__init__(response)
         self.cms_signing = response.get('cms_signing')
 
+class DiscIndex(VRVResponse):
+    def __init__(self, response):
+        super(DiscIndex, self).__init__(response)
+        self.links
 
 class WatchlistItem(VRVResponse):
     def __init__(self, response):
