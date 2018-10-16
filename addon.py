@@ -42,7 +42,7 @@ session = VRV(__settings__.getSetting('vrv_username'),
 
 cms_url = session.index.links['cms_index.v2'].rstrip('index')
 
-adaptive = __settings__.getSetting('adaptive_mode')
+adaptive = (__settings__.getSetting('adaptive_mode') == 'true')
 set_res = int(__settings__.getSetting('resolution'))
 
 
@@ -140,7 +140,7 @@ def setup_player(playable_obj):
             xbmc.sleep(1000)
             loops += 1
             if loops > timeout:
-                dialog.notification("VRV","Failed to play stream. Check config?",icon=xbmcgui.NOTIFICATIONERROR, time=5000)
+                dialog.notification("VRV","Failed to play stream. Check config?",icon=xbmcgui.NOTIFICATION_ERROR, time=5000)
                 failure = True
                 break
         current_pos = 0
@@ -149,6 +149,7 @@ def setup_player(playable_obj):
             """ if user chose to resume, tell the player to seek
                 it's supposed to, per the docs, to do this in the player.play call, but due to a bug or
                 my ignorance, it doesn't. so we force its hand here
+                TODO: this seems to break sync with subtitles.
             """
             if not tried_seek and last_pos > 0:
                 my_log("Trying to get Kodi to seek to %s." % (last_pos), xbmc.LOGDEBUG)
@@ -171,7 +172,7 @@ def setup_player(playable_obj):
 
 
 def prepstream(stream_url):
-    if adaptive == "true":
+    if adaptive:
         return stream_url
     else:
         pl_parse = m3u8.load(stream_url)
