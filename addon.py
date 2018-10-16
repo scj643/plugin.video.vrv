@@ -1,6 +1,7 @@
 """
 addon.py
 Created by scj643 on 10/13/2017
+Modified by Brandon Tolbird
 """
 
 import os
@@ -13,7 +14,7 @@ import xbmcplugin
 import xbmcgui
 
 from resources.lib.vrvlib import VRV
-from xbmcgui import ListItem
+from xbmcgui import ListItem, Dialog
 from string import capwords
 from urllib import quote, unquote, quote_plus, urlencode
 from resources.lib.vrvplay import VRVPlayer
@@ -48,11 +49,11 @@ set_res = int(__settings__.getSetting('resolution'))
 def my_log(message, level):
     xbmc.log("[PLUGIN] %s: %s" % (__plugin__, message), level)
 
-def convert_time(seconds):
+def format_time(seconds):
     secs, mins = math.modf(float(seconds) / float(60))
     secs = int(secs * 60)
     mins = int(mins)
-    return mins, secs
+    return "%02d:%02d" % (mins,secs)
 
 def get_parent_art(item):
     art_dict = {}
@@ -63,6 +64,13 @@ def get_parent_art(item):
         parent = session.get_cms(cms_url + 'movie_listings/' + item.listing_id)
         art_dict = cache_art(parent.images.kodi_setart_dict())
     return art_dict
+
+def get_parent_info(item):
+    info = {}
+    if (item.rclass == 'season') and item.series_id:
+       parent = session.get_cms(cms_url + 'series/'+ item.series_id)
+       info = parent.kodi_info()
+    return info
 
 def cache_art(art_dict):
     for type, url in art_dict.items():
@@ -80,14 +88,26 @@ def cache_art(art_dict):
 
 
 def setup_player(playable_obj):
+    timeout = 30
+    failure = False
     if hasattr(playable_obj,'streams') and hasattr(playable_obj,'get_play_head'):
-        xbmc.executebuiltin('Notification("VRV","Starting stream...",1000)')
+        dialog = Dialog()
         stream = session.get_cms(playable_obj.streams)
         playhead = playable_obj.get_play_head(session)
+
         if playhead and not playhead.completion_status:
-            last_pos = playhead.position
+            timestamp = format_time(playhead.position)
+            res = dialog.yesno('Resume Playback',
+                               'Do you want to resume playback at {}?'.format(timestamp))
+            if res:
+                last_pos = playhead.position
+            else:
+                last_pos = -1
         else:
             last_pos = -1
+        if not adaptive:
+            #notify the user because the adaptive stream workaround takes a few seconds
+            dialog.notification("VRV", "Starting stream...", time=1000, sound=False)
         li = ListItem(playable_obj.title)
         if playable_obj.media_type == "episode":
             li.setLabel2(str(playable_obj.episode_number))
@@ -100,6 +120,12 @@ def setup_player(playable_obj):
         if parent_ac:
             li.setArt({'fanart': parent_ac.get('fanart')})
         li.setInfo('video', playable_obj.kodi_info())
+        if adaptive: #set properties required for inputstream adaptive
+            li.setProperty('inputstreamaddon', 'inputstream.adaptive')
+            li.setProperty('inputstream.adaptive.manifest_type', 'hls')
+            li.setMimeType('application/dash+xml')
+            li.setContentLookup(False)
+
         player = xbmc.Player()
 
         my_log("Setting up player object. PlayHead position is %s." % (last_pos), xbmc.LOGDEBUG)
@@ -108,22 +134,40 @@ def setup_player(playable_obj):
         player.play(prepstream(stream.hls), li, False, last_pos)
         tried_seek = False
         my_log("Told Kodi to play stream URL. Now we wait...", xbmc.LOGDEBUG)
+        loops = 0
+        # wait for kodi to start playing
         while not player.isPlaying():
             xbmc.sleep(1000)
+            loops += 1
+            if loops > timeout:
+                dialog.notification("VRV","Failed to play stream. Check config?",icon=xbmcgui.NOTIFICATIONERROR, time=5000)
+                failure = True
+                break
+        current_pos = 0
+        # main polling loop. it's probably not the most elegant/efficient way, but it works
         while player.isPlaying():
+            """ if user chose to resume, tell the player to seek
+                it's supposed to, per the docs, to do this in the player.play call, but due to a bug or
+                my ignorance, it doesn't. so we force its hand here
+            """
             if not tried_seek and last_pos > 0:
                 my_log("Trying to get Kodi to seek to %s." % (last_pos), xbmc.LOGDEBUG)
                 player.seekTime(float(last_pos))
-                xbmc.sleep(1000)
+                xbmc.sleep(1000) # wait for kodi to response
                 current_pos = int(player.getTime())
                 tried_seek = (current_pos >= last_pos)
 
             current_pos = int(player.getTime())
-            my_log("Current position is %s." % (current_pos), xbmc.LOGDEBUG)
-
+            #just get the current playback position and sleep
             xbmc.sleep(2000)
-        playable_obj.post_play_head(session, current_pos)
-        my_log("Done playing.", xbmc.LOGDEBUG)
+        # stopped playback (hopefully), so update our position on the server
+        if not failure:
+            playable_obj.post_play_head(session, current_pos)
+            my_log("Done playing.", xbmc.LOGDEBUG)
+        else:
+            my_log("Error(s) encountered while trying to play stream.", xbmc.LOGERROR)
+            if adaptive:
+                my_log("InputStream Adaptive is possibly not installed or configured?", xbmc.LOGERROR)
 
 
 def prepstream(stream_url):
@@ -141,7 +185,6 @@ def prepstream(stream_url):
                 current_max_res = res[1]
                 req_res_pl = playlist
             if res[1] > current_max_res:
-                old_max = current_max_res
                 current_max_res = res[1]
                 max_res_pl = playlist
 
@@ -152,20 +195,34 @@ def prepstream(stream_url):
         return req_res_pl.uri
 
 def handle_panel(panel, li):
+    art_cache = cache_art(panel.images.kodi_setart_dict())
+    li.setArt(art_cache)
+
     if panel.ptype == "series":
+        item_res = session.get_cms(cms_url + 'series/' + panel.id)
+        li.setInfo('video', item_res.kodi_info())
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(series, panel.id), li, True)
     elif panel.ptype == "movie_listing":
+        item_res = session.get_cms(cms_url + 'movie_listings/' + panel.id)
+        li.setInfo('video', item_res.kodi_info())
+        xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(movie_listing, panel.id), li, True)
+    elif panel.ptype == "movie":
+        item_res = session.get_cms(cms_url + 'movies/' + panel.id)
+        li.setInfo('video', item_res.kodi_info())
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(movie, panel.id), li, True)
     elif panel.ptype == "episode":
         episode_res = session.get_cms(cms_url + 'episodes/' + panel.id)
         parent_ac = get_parent_art(episode_res)
+        li.setInfo('video', episode_res.kodi_info())
         li.setArt({'fanart': parent_ac.get('fanart')})
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(episode, panel.id), li, True)
     elif panel.ptype == "season":
         season_res = session.get_cms(cms_url + 'seasons/' + panel.id)
+        li.setInfo('video', get_parent_info(season_res))
         parent_ac = get_parent_art(season_res)
         li.setArt(parent_ac)
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(season, panel.id), li, True)
+
 
 @plugin.route('/')
 def index():
@@ -203,10 +260,7 @@ def search():
         for res_panel in search_results.items:
             li = ListItem(res_panel.title + ' ' + res_panel.lang + ' (' + capwords(res_panel.channel_id) + ') ('
                           + res_panel.ptype +')')
-            li.setInfo('video', {'title': res_panel.title, 'plot': res_panel.description})
             handle_panel(res_panel,li)
-            art_cache = cache_art(res_panel.images.kodi_setart_dict())
-            li.setArt(art_cache)
 
         if search_results.links['continuation']:
             li = ListItem('More...')
@@ -222,9 +276,17 @@ def watchlist():
     length = plugin.args.get('page_length',[20])[0]
     wl = session.get_watchlist(page_length=length, page=page)
     for i in wl.items:
-        li = ListItem(i.panel.title + ' ' + i.panel.lang + ' (' + capwords(i.panel.channel_id) + ')')
-        li.setInfo('video', {'title': i.panel.title, 'plot':i.panel.description })
-        art_cache = cache_art(i.panel.images.kodi_setart_dict())
+        pan = i.panel
+        li = ListItem('{} {} ({})'.format(pan.title, pan.lang, capwords(pan.channel_id)))
+        if pan.ptype == 'series':
+            prep_desc = "{}\nSeasons: {}\nEpisodes: {}".format(pan.description, pan.season_count,pan.episode_count)
+            li.setProperty('TotalSeasons', str(pan.season_count))
+            li.setProperty('TotalEpisodes', str(pan.episode_count))
+        else:
+            prep_desc = pan.description
+        li.setInfo('video', {'title': pan.title,
+                             'plot': prep_desc})
+        art_cache = cache_art(pan.images.kodi_setart_dict())
         li.setArt(art_cache)
         handle_panel(i.panel, li)
     if wl.links.get('next'):
@@ -248,39 +310,51 @@ def channel(cid):
     if channel_data.links:
         if channel_data.links.get('channel/series'):
             li = ListItem('Series')
-            xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(chseries, cid, 0, 20), li, True)
+            xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(chseries, id=cid), li, True)
         if channel_data.links.get('channel/movie_listings'):
             li = ListItem('Movies')
-            xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(chmovies, cid, 0, 20), li, True)
+            xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(chmovies, id=cid), li, True)
     xbmcplugin.endOfDirectory(plugin.handle)
     
-@plugin.route('/chseries/<cid>/<index>/<limit>')
-def chseries(cid, index, limit):
-    series_url = "{}series?channel_id={}&cont={}&limit={}&mode=channel".format(cms_url,cid,index,limit)
-    my_log("Series url is " + series_url, xbmc.LOGDEBUG)
-    show_data = session.get_cms(series_url)
-    for i in show_data.items:
-        li = ListItem(i.title)
-        art_cache = cache_art(i.images.kodi_setart_dict())
-        li.setArt(art_cache)
-        xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(series, i.id), li, True)
-    next_item = ListItem("Next")
-    xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(chseries, cid, int(index) + int(limit), limit), next_item, True)
-    xbmcplugin.endOfDirectory(plugin.handle)
+@plugin.route('/chseries')
+def chseries():
+    channel_id = plugin.args.get('id',[None])[0]
+    if channel_id:
+        cont = int(plugin.args.get('cont',[0])[0])
+        limit = plugin.args.get('limit',[20])[0]
+        series_url = "{}series?channel_id={}&cont={}&limit={}&mode=channel".format(cms_url,channel_id,cont,limit)
+        my_log("Series url is " + series_url, xbmc.LOGDEBUG)
+        show_data = session.get_cms(series_url)
+        for i in show_data.items:
+            li = ListItem(i.title)
+            art_cache = cache_art(i.images.kodi_setart_dict())
+            li.setArt(art_cache)
+            li.setInfo('video', i.kodi_info())
+            li.setProperty('TotalSeasons', str(i.season_count))
+            li.setProperty('TotalEpisodes', str(i.episode_count))
+            xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(series, i.id), li, True)
+        next_item = ListItem("More...")
+        xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(chseries, id=channel_id, cont=int(cont) + int(limit), limit=limit), next_item, True)
+        xbmcplugin.endOfDirectory(plugin.handle)
 
-@plugin.route('/chmovies/<cid>/<index>/<limit>')
-def chmovies(cid, index, limit):
-    movies_url = "{}movie_listings?channel_id={}&cont={}&limit={}&mode=channel".format(cms_url,cid,index,limit)
-    my_log("Movies url is " + movies_url, xbmc.LOGDEBUG)
-    movie_data = session.get_cms(movies_url)
-    for i in movie_data.items:
-        li = ListItem(i.title)
-        art_cache = cache_art(i.images.kodi_setart_dict())
-        li.setArt(art_cache)
-        xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(movie, i.id), li, True)
-    next_item = ListItem("Next")
-    xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(chmovies, cid, int(index) + int(limit), limit), next_item, True)
-    xbmcplugin.endOfDirectory(plugin.handle)
+@plugin.route('/chmovies')
+def chmovies():
+    channel_id = plugin.args.get('id', [None])[0]
+    if channel_id:
+        cont = int(plugin.args.get('cont', [0])[0])
+        limit = plugin.args.get('limit', [20])[0]
+        movies_url = "{}movie_listings?channel_id={}&cont={}&limit={}&mode=channel".format(cms_url,channel_id,cont,limit)
+        my_log("Movies url is " + movies_url, xbmc.LOGDEBUG)
+        movie_data = session.get_cms(movies_url)
+        for i in movie_data.items:
+            li = ListItem(i.title)
+            art_cache = cache_art(i.images.kodi_setart_dict())
+            li.setArt(art_cache)
+            li.setInfo('video', i.kodi_info())
+            xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(movie_listing, i.id), li, True)
+        next_item = ListItem("More")
+        xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(chmovies, id=channel_id, cont=int(cont) + int(limit), limit=limit), next_item, True)
+        xbmcplugin.endOfDirectory(plugin.handle)
 
 
 @plugin.route('/notavail')
@@ -317,10 +391,19 @@ def movie(mid):
 def series(nid):
     my_log('got to series ' + str(nid), xbmc.LOGDEBUG)
     seasons = session.get_cms(cms_url + 'seasons?series_id=' + nid)
+    series = session.get_cms(cms_url +'series/'+nid)
+    if series:
+        series_info = series.kodi_info()
+    else:
+        series_info = dict()
+
     for i in seasons.items:
         li = ListItem(i.title)
         art_cache = get_parent_art(i)
         li.setArt(art_cache)
+        li.setInfo('video', series_info)
+        #li.setInfo('video', {'title': i.title,
+        #                     'label2': i.season_number})
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(season, i.id), li, True)
     xbmcplugin.endOfDirectory(plugin.handle)
 
@@ -331,14 +414,13 @@ def season(nid):
     eps = session.get_cms(cms_url + 'episodes?season_id=' + nid)
     for i in eps.items:
         iph = i.get_play_head(session)
+        title = i.title
         if iph:
             if iph.completion_status:
-                li = ListItem(i.title + " [Status: Completed]")
+                title = u"{} [Status: Completed]".format(i.title)
             else:
-                min, sec = convert_time(iph.position)
-                li = ListItem("%s [Status: In Progress: %s:%s]" % (i.title, min, sec))
-        else:
-            li = ListItem(i.title)
+                title = u"{} [Status: In Progress: {}]".format(i.title, format_time(iph.position))
+        li = ListItem(title)
         li.setLabel2(str(i.episode_number))
         art_cache = cache_art(i.images.kodi_setart_dict())
         parent_ac = get_parent_art(i)

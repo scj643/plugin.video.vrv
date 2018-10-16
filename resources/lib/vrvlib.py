@@ -146,7 +146,7 @@ class Season(VRVResponse):
         self.id = response.get('id')
         self.channel = response.get('channel_id')
         self.is_complete = response.get('is_complete')
-        self.description = response.get('description')
+        self.description = response.get('description').encode('utf-8')
         self.is_mature = response.get('is_mature')
         self.subbed = response.get('is_subbed')
         self.dubbed = response.get('is_dubbed')
@@ -179,7 +179,7 @@ class MovieListing(VRVResponse):
         super(MovieListing, self).__init__(response)
         self.id = response.get('id')
         self.channel = response.get('channel_id')
-        self.description = response.get('description')
+        self.description = response.get('description').encode('utf-8')
         self.is_mature = response.get('is_mature')
         self.subbed = response.get('is_subbed')
         self.dubbed = response.get('is_dubbed')
@@ -189,13 +189,24 @@ class MovieListing(VRVResponse):
     def __repr__(self):
         return u'<MovieListing: {}>'.format(self.title)
 
+    def kodi_info(self):
+        """
+        Function to create a dictionary for Kodi setInfo
+        :return: Dictionary formatted for Kodi
+        """
+        return {
+            'plot': self.description,
+            'mediatype': 'movie',
+            'title': self.title
+        }
+
 
 class Episode(VRVResponse):
     def __init__(self, response):
         super(Episode, self).__init__(response)
         self.title = response.get('title')
         self.media_type = response.get('media_type')
-        self.description = response.get('description')
+        self.description = response.get('description').encode('utf-8')
         self.duration_ms = response.get('duration_ms')
         self.episode_air_date = response.get('episode_air_date')
         self.subbed = response.get('is_subbed')
@@ -256,7 +267,7 @@ class Movie(VRVResponse):
         super(Movie, self).__init__(response)
         self.title = response.get('title')
         self.media_type = response.get('media_type')
-        self.description = response.get('description')
+        self.description = response.get('description').encode('utf-8')
         self.duration_ms = response.get('duration_ms')
         self.is_mature = response.get('is_mature')
         self.streams = self.links.get('streams')
@@ -326,7 +337,6 @@ class Index(VRVResponse):
 class DiscIndex(VRVResponse):
     def __init__(self, response):
         super(DiscIndex, self).__init__(response)
-        self.links
 
 class WatchlistItem(VRVResponse):
     def __init__(self, response):
@@ -341,16 +351,28 @@ class Panel(VRVResponse):
     def __init__(self, response):
         super(Panel, self).__init__(response)
         self.title = response.get('title')
-        self.description = response.get('description')
+        self.description = response.get('description').encode('utf-8')
         self.resource = self.links.get('resource')
         self.id = response.get('id')
         self.channel_id = response.get('channel_id')
         self.ptype = response.get('type')
-        
-        if response.get('series_metadata',dict()).get('is_subbed'):
-            self.lang = '(subbed)'
+        if self.ptype == 'series':
+            self.series_metadata = response.get('series_metadata',dict())
         else:
+            self.series_metadata = dict()
+        if self.series_metadata:
+            self.episode_count = self.series_metadata.get('episode_count')
+            self.season_count = self.series_metadata.get('season_count')
+        else:
+            self.season_count = 0
+            self.episode_count = 0
+
+        if self.series_metadata.get('is_subbed'):
+            self.lang = '(subbed)'
+        elif self.series_metadata.get('is_dubbed'):
             self.lang = '(dubbed)'
+        else:
+            self.lang = ''
 
     def __repr__(self):
         return u'<Panel: {}>'.format(self.title)
@@ -360,7 +382,7 @@ class Channel(VRVResponse):
     def __init__(self, response):
         super(Channel, self).__init__(response)
         self.name = response.get('name',response.get('id'))
-        self.description = response.get('description')
+        self.description = response.get('description').encode('utf-8')
         self.id = response.get('id')
         self.cms_id = response.get('cms_id')
 
@@ -377,7 +399,7 @@ class Series(VRVResponse):
         super(Series, self).__init__(response)
         self.title = response.get('title')
         self.episode_count = response.get('episode_count')
-        self.description = response.get('description')
+        self.description = response.get('description').encode('utf-8')
         self.keywords = response.get('keywords')
         self.season_count = response.get('season_count')
         self.seasons_href = self.links.get('series/seasons')
@@ -390,10 +412,8 @@ class Series(VRVResponse):
         :return: Dictionary formatted for Kodi
         """
         return {
-            'season': self.season_number,
             'plot': self.description,
             'mediatype': 'tvshow',
-            'tvshowtitle': self.series_title,
             'title': self.title,
             'originaltitle': self.title
         }

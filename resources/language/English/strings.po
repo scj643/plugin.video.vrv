@@ -30,11 +30,11 @@ msgid "Secret"
 msgstr ""
 
 msgctxt "#30005"
-msgid "Adaptive Stream Mode"
+msgid "Use InputStream Adaptive"
 msgstr ""
 
 msgctxt "#30006"
-msgid "Force Resolution (if ASM is off)"
+msgid "Force Resolution (if Use ISA is off)"
 msgstr ""
 
 msgctxt "#30501"
