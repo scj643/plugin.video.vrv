@@ -23,7 +23,7 @@ plugin = routing.Plugin()
 _plugId = "plugin.video.vrv"
 
 __plugin__ = "VRV"
-__version__ = "0.0.1"
+__version__ = "0.0.10"
 __settings__ = xbmcaddon.Addon(id=_plugId)
 __profile__ = xbmc.translatePath( __settings__.getAddonInfo('profile') ).decode("utf-8")
 
@@ -200,16 +200,18 @@ def handle_panel(panel, li):
     li.setArt(art_cache)
 
     if panel.ptype == "series":
-        item_res = session.get_cms(cms_url + 'series/' + panel.id)
-        li.setInfo('video', item_res.kodi_info())
+        #item_res = session.get_cms(cms_url + 'series/' + panel.id)
+        li.setInfo('video', panel.kodi_info())
+        li.setProperty('TotalSeasons', str(panel.season_count))
+        li.setProperty('TotalEpisodes', str(panel.episode_count))
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(series, panel.id), li, True)
     elif panel.ptype == "movie_listing":
-        item_res = session.get_cms(cms_url + 'movie_listings/' + panel.id)
-        li.setInfo('video', item_res.kodi_info())
+        #item_res = session.get_cms(cms_url + 'movie_listings/' + panel.id)
+        li.setInfo('video', panel.kodi_info())
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(movie_listing, panel.id), li, True)
     elif panel.ptype == "movie":
-        item_res = session.get_cms(cms_url + 'movies/' + panel.id)
-        li.setInfo('video', item_res.kodi_info())
+        #item_res = session.get_cms(cms_url + 'movies/' + panel.id)
+        li.setInfo('video', panel.kodi_info())
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(movie, panel.id), li, True)
     elif panel.ptype == "episode":
         episode_res = session.get_cms(cms_url + 'episodes/' + panel.id)
@@ -263,7 +265,7 @@ def search():
                           + res_panel.ptype +')')
             handle_panel(res_panel,li)
 
-        if search_results.links['continuation']:
+        if search_results.links.get('continuation'):
             li = ListItem('More...')
             new_start = int(start) + int(result_size)
             xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(search, query=quote_plus(query), start=new_start,
@@ -279,17 +281,8 @@ def watchlist():
     for i in wl.items:
         pan = i.panel
         li = ListItem('{} {} ({})'.format(pan.title, pan.lang, capwords(pan.channel_id)))
-        if pan.ptype == 'series':
-            prep_desc = "{}\nSeasons: {}\nEpisodes: {}".format(pan.description, pan.season_count,pan.episode_count)
-            li.setProperty('TotalSeasons', str(pan.season_count))
-            li.setProperty('TotalEpisodes', str(pan.episode_count))
-        else:
-            prep_desc = pan.description
-        li.setInfo('video', {'title': pan.title,
-                             'plot': prep_desc})
-        art_cache = cache_art(pan.images.kodi_setart_dict())
-        li.setArt(art_cache)
         handle_panel(i.panel, li)
+
     if wl.links.get('next'):
         li = ListItem('More...')
         page+=1
@@ -328,15 +321,11 @@ def chseries():
         show_data = session.get_cms(series_url)
         for i in show_data.items:
             li = ListItem(i.title)
-            art_cache = cache_art(i.images.kodi_setart_dict())
-            li.setArt(art_cache)
-            li.setInfo('video', i.kodi_info())
-            li.setProperty('TotalSeasons', str(i.season_count))
-            li.setProperty('TotalEpisodes', str(i.episode_count))
-            xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(series, i.id), li, True)
-        next_item = ListItem("More...")
-        xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(chseries, id=channel_id, cont=int(cont) + int(limit), limit=limit), next_item, True)
-        xbmcplugin.endOfDirectory(plugin.handle)
+            handle_panel(i, li)
+        if show_data.links.get('continuation'):
+            next_item = ListItem("More...")
+            xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(chseries, id=channel_id, cont=int(cont) + int(limit), limit=limit), next_item, True)
+            xbmcplugin.endOfDirectory(plugin.handle)
 
 @plugin.route('/chmovies')
 def chmovies():
@@ -349,13 +338,11 @@ def chmovies():
         movie_data = session.get_cms(movies_url)
         for i in movie_data.items:
             li = ListItem(i.title)
-            art_cache = cache_art(i.images.kodi_setart_dict())
-            li.setArt(art_cache)
-            li.setInfo('video', i.kodi_info())
-            xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(movie_listing, i.id), li, True)
-        next_item = ListItem("More")
-        xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(chmovies, id=channel_id, cont=int(cont) + int(limit), limit=limit), next_item, True)
-        xbmcplugin.endOfDirectory(plugin.handle)
+            handle_panel(i, li)
+        if movie_data.links.get('continuation'):
+            next_item = ListItem("More")
+            xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(chmovies, id=channel_id, cont=int(cont) + int(limit), limit=limit), next_item, True)
+            xbmcplugin.endOfDirectory(plugin.handle)
 
 
 @plugin.route('/notavail')

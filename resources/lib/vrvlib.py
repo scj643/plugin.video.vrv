@@ -161,13 +161,10 @@ class Season(VRVResponse):
         :return: Dictionary formatted for Kodi
         """
         return {
-            'season': self.season_number,
-            'plot': self.description,
-            'premiered': self.episode_air_date,
-            'mediatype': 'season',
-            'episode': self.episode_number,
-            'tvshowtitle': self.series_title,
-            'title': self.title
+                'season': self.season_number,
+                'plot': self.description,
+                'mediatype': 'season',
+                'title': self.title
         }
 
     def __repr__(self):
@@ -373,6 +370,25 @@ class Panel(VRVResponse):
             self.lang = '(dubbed)'
         else:
             self.lang = ''
+
+    def kodi_info(self):
+        """
+        Function to create a dictionary for Kodi setInfo
+        :return: Dictionary formatted for Kodi
+        """
+        info = {
+                'plot': self.description,
+                'title': self.title,
+                'originaltitle': self.title
+        }
+        if self.ptype == 'series':
+            info['mediatype'] = 'tvshow'
+            info['plot'] = "Seasons: {}\nEpisodes: {}\n{}".format(self.season_count,self.episode_count,self.description)
+        elif self.ptype =='movie_listing':
+            info['mediatype'] = 'movie'
+        else:
+            info['mediatype'] = self.ptype
+        return info
 
     def __repr__(self):
         return u'<Panel: {}>'.format(self.title)
