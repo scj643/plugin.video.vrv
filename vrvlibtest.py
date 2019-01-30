@@ -26,8 +26,8 @@ if email and password:
 
 
     import urllib
-    query = raw_input("Search for: ")
-    search_url = search_url = session.cms_index.links['search_results']
+    """query = raw_input("Search for: ")
+    search_url = session.cms_index.links['search_results']
     search_terms = {'q': query, 'n': 50, 'start': '.' + str(0)}
     search_res = session.get_cms(search_url + '?' + urllib.urlencode(search_terms))
 
@@ -39,7 +39,7 @@ if email and password:
         print("Search API call came back OK. Results:")
         for result_item in search_res.items:
             print(result_item.title)
-
+    """
 
     """import m3u8
 
@@ -70,3 +70,21 @@ if email and password:
         #else:
         #    break
     """
+
+    cms_index = session.get_cms(session.index.links['cms_index.v2'])
+    pri_feed = session.get_cms(cms_index.links['primary_feed'])
+    home_feeds = session.get_cms(cms_index.links['home_feeds'])
+    feed_items = pri_feed.items
+    home_items = home_feeds.items
+    
+    print("Curated feed(s):")
+    for item in feed_items:
+        print(item.title)
+    print("Home feed(s):")
+    for item in home_items:
+        print(item.title)
+
+#TODO: implement curated_feeds
+
+
+    

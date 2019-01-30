@@ -225,6 +225,9 @@ def handle_panel(panel, li):
         parent_ac = get_parent_art(season_res)
         li.setArt(parent_ac)
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(season, panel.id), li, True)
+    elif panel.ptype == "curated_feed":
+        xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(feed, panel.id), li, True)
+        
 
 
 @plugin.route('/')
@@ -394,6 +397,20 @@ def series(nid):
         #                     'label2': i.season_number})
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(season, i.id), li, True)
     xbmcplugin.endOfDirectory(plugin.handle)
+
+@plugin.route('/feed/<fid>')
+def feed(fid):
+    feed = session.get_cms(cms_url + 'curated_feeds/' + fid + '?version=1.1')
+    
+    if feed.status_code == 200:
+       for item in feed.items:
+           li = ListItem(item.title)
+           if item.rclass == 'panel'
+              handle_panel(item, li)
+           elif item.rclass == 'curated_feed'
+              xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(feed, item.id)
+       xbmcplugin.endOfDirectory(plugin.handle)
+           
 
 
 @plugin.route('/season/<nid>')

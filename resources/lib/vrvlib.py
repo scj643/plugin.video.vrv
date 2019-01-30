@@ -108,7 +108,8 @@ class VRVResponse(object):
         self.links = process_links(response.get('__links__'))
         self.actions = process_links(response.get('__actions__'))
         self.rclass = response.get('__class__')
-        if 'images' in response.keys():
+        self.status_code = response.status_code
+        if 'images' in response.keys() and response.get('images'):
             self.images = Images(response.get('images'))
         else:
             self.images = None
@@ -545,6 +546,24 @@ class Poster(object):
     def __repr__(self):
         return u'<Poster: {} {}x{}>'.format(self.kind, self.width, self.height)
 
+class CuratedFeed(VRVResponse):
+    """
+    Curated Feed class.
+    """
+    def __init__(self, response):
+        super(CuratedFeed, self).__init__(response)
+        self.title = response.get('title', 'no title')
+        self.api_class = response.get('__class__', 'no class')
+        self.description = response.get('description', '')
+        self.id = response.get('id')
+        if response.get('items'):
+            self.items = [vrv_json_hook(x) for x in response.get('items')] 
+        self.feed_type = response.get('feed_type')
+
+    def __repr__(self):
+        return u'<vrvlib CuratedFeed: {}:{}>'.format(self.title,self.feed_type)
+
+
 class UnknownType(VRVResponse):
     """
     Catchall class meant for debugging
@@ -583,6 +602,8 @@ def vrv_json_hook(response):
             return WatchlistItem(response)
         elif rclass == 'channel' or rclass == 'core.channel':
             return Channel(response)
+        elif rclass == 'curated_feed':
+            return CuratedFeed(response)
         elif rclass == 'panel':
             return Panel(response)
         elif rclass == 'series':
