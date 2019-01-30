@@ -232,12 +232,32 @@ def handle_panel(panel, li):
 
 @plugin.route('/')
 def index():
-    item_tuple = (("Watchlist", "/watchlist"), ("Channels","/channels"), ("Search", "/search"))
+    item_tuple = (("Watchlist", "/watchlist"), ("Channels","/channels"), ("Search", "/search"),
+                  ("Feeds/Recommended", "/feeds"))
     for title, route in item_tuple:
         li = ListItem(title)
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for_path(route), li, True)
     xbmcplugin.endOfDirectory(plugin.handle)
 
+
+@plugin.route('/feeds')
+def feeds():
+    cms_index = session.get_cms(session.index.links['cms_index.v2'])
+    pri_feed = session.get_cms(cms_index.links['primary_feed'])
+    home_feeds = session.get_cms(cms_index.links['home_feeds'])
+
+    li = ListItem("Recommended:")
+    xbmcplugin.addDirectoryItem(plugin.handle, None, li, True)
+    for rec_item in pri_feed.items:
+        li = ListItem(rec_item.title)
+        handle_panel(rec_item, li)
+    li = ListItem("Other Feeds:")
+    xbmcplugin.addDirectoryItem(plugin.handle, None, li, True)
+    for feed_item in home_feeds.items:
+        if feed_item.rclass == 'curated_feed':
+           li = ListItem(feed_item.title)
+           xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(feed, feed_item.id), li, True)
+    xbmcplugin.endOfDirectory(plugin.handle)
 
 
 @plugin.route('/search')
