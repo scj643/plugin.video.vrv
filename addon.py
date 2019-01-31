@@ -13,6 +13,7 @@ import xbmcaddon
 import xbmcplugin
 import xbmcgui
 
+
 from resources.lib.vrvlib import VRV
 from xbmcgui import ListItem, Dialog
 from string import capwords
@@ -203,7 +204,7 @@ def prepstream(stream_url):
 
         return req_res_pl.uri
 
-def handle_panel(panel, li):
+def handle_panel(panel, li, set_menu=True):
     if panel.images:
         art_cache = cache_art(panel.images.kodi_setart_dict())
         li.setArt(art_cache)
@@ -213,21 +214,20 @@ def handle_panel(panel, li):
         li.setInfo('video', panel.kodi_info())
         li.setProperty('TotalSeasons', str(panel.season_count))
         li.setProperty('TotalEpisodes', str(panel.episode_count))
-        delete_link = panel.actions.get('watchlist/delete')
-        if not delete_link:
-           #TODO: fix this
-           li.addContextMenuItems([('Add to watchlist',
-                                    "ActivateWindow(10025,'plugin://plugin.video.vrv/"
-                                    "add_to_watchlist?rid={}',return)".format(panel.id))])
+        add_url = plugin.url_for(add_to_watchlist, rid=panel.id)
+        my_log("add_url is {}".format(add_url), xbmc.LOGDEBUG)
+        context_items = [('Add to watchlist', "XBMC.RunPlugin({})".format(add_url))]
+        if set_menu:
+            li.addContextMenuItems(context_items, False)
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(series, panel.id), li, True)
     elif panel.ptype == "movie_listing":
         #item_res = session.get_cms(cms_url + 'movie_listings/' + panel.id)
         li.setInfo('video', panel.kodi_info())
-        delete_link = panel.actions.get('watchlist/delete')
-        if not delete_link:
-           li.addContextMenuItems([('Add to watchlist',
-                                    "ActivateWindow(10025,'plugin://plugin.video.vrv/"
-                                    "add_to_watchlist?rid={}',return)".format(panel.id))])
+        add_url = plugin.url_for(add_to_watchlist, rid=panel.id)
+        my_log("add_url is {}".format(add_url), xbmc.LOGDEBUG)
+        context_items = [('Add to watchlist', "XBMC.RunPlugin({})".format(add_url))]
+        if set_menu:
+            li.addContextMenuItems(context_items)
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(movie_listing, panel.id), li, True)
     elif panel.ptype == "movie":
         #item_res = session.get_cms(cms_url + 'movies/' + panel.id)
@@ -319,13 +319,17 @@ def search():
 def add_to_watchlist():
     ref_id = plugin.args.get('rid',[None])[0]
     if ref_id:
+        dialog = Dialog()
         session.add_to_watchlist(ref_id)
+        dialog.notification("VRV", "Added to watchlist.", time=1000, sound=False)
 
 @plugin.route('/delete_from_watchlist')
 def delete_from_watchlist():
     wl_id = plugin.args.get('wlid',[None])[0]
     if wl_id:
+        dialog = Dialog()
         session.delete_from_watchlist(wl_id)
+        dialog.notification("VRV", "Removed from watchlist. Please refresh.", time=1000, sound=False)
 
 @plugin.route('/watchlist')
 def watchlist():
@@ -335,15 +339,17 @@ def watchlist():
     for i in wl.items:
         pan = i.panel
         li = ListItem('{} {} ({})'.format(pan.title, pan.lang, capwords(pan.channel_id)))
-        handle_panel(i.panel, li)
+
         delete_link = i.actions.get('watchlist/delete')
         my_log("Available actions for {} are {}.".format(i.panel.id, i.actions), xbmc.LOGDEBUG)
         if delete_link:
            my_log("Found delete_link.", xbmc.LOGDEBUG)
            wl_id = delete_link.split('/')[-1]
-           li.addContextMenuItems([('Remove from watchlist',
-               "RunScript({},{})".format(wl_id))],replace=True)
-
+           remove_url = plugin.url_for(delete_from_watchlist, wlid=wl_id)
+           my_log("remove_url is {}".format(remove_url), xbmc.LOGDEBUG)
+           context_items = [(('Remove from watchlist',"XBMC.RunPlugin({})".format(remove_url)))]
+           li.addContextMenuItems(context_items)
+        handle_panel(i.panel, li, set_menu=False)
     if wl.links.get('next'):
         li = ListItem('More...')
         page+=1
