@@ -96,6 +96,26 @@ class VRV(object):
             uid=self.auth['account_id'], length=page_length, page=page)
         return vrv_json_hook(self.session.get(url).json())
 
+    def add_to_watchlist(self, ref_id):
+        url = '{api}{accounts}/{uid}/watchlist'.format(api=self.api_url,
+		 accounts=self.links.get('accounts'),uid=self.auth['account_id'])
+        data = {'ref_id': ref_id}
+        ret_data = self.session.post(url, data=data)
+        if ret_data:
+            return ret_data.status_code == 200
+        else:
+            return False
+
+    def delete_from_watchlist(self, wid):
+        url = '{api}{accounts}/{uid}/watchlist/{wid}'.format(api=self.api_url,
+		 accounts=self.links.get('accounts'),uid=self.auth['account_id'],
+                 wid=wid)
+        ret_data = self.session.delete(url)
+        if ret_data:
+            return ret_data.status_code == 200
+        else:
+            return False
+        
 
 class VRVResponse(object):
     """
@@ -108,7 +128,7 @@ class VRVResponse(object):
         self.links = process_links(response.get('__links__'))
         self.actions = process_links(response.get('__actions__'))
         self.rclass = response.get('__class__')
-        self.status_code = response.status_code
+        self.status_code = 200
         if 'images' in response.keys() and response.get('images'):
             self.images = Images(response.get('images'))
         else:

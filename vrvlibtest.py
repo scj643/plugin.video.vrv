@@ -80,7 +80,6 @@ if email and password:
     print("Curated feed(s):")
     for item in feed_items:
         print(item.title)
-        if item.ptype == "curated_feed":
             
     print("Home feed(s):")
     for item in home_items:

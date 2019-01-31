@@ -23,15 +23,24 @@ plugin = routing.Plugin()
 _plugId = "plugin.video.vrv"
 
 __plugin__ = "VRV"
-__version__ = "0.0.10"
+__version__ = "0.1.0"
 __settings__ = xbmcaddon.Addon(id=_plugId)
 __profile__ = xbmc.translatePath( __settings__.getAddonInfo('profile') ).decode("utf-8")
+
+__addon_path__ = xbmc.translatePath( __settings__.getAddonInfo('path') ).decode("utf-8")
 
 artwork_temp = os.path.join(__profile__,'art_temp')
 if not os.path.exists(artwork_temp):
     os.mkdir(artwork_temp)
 
-xbmc.log("[PLUGIN] '%s: version %s' initialized!" % (__plugin__, __version__))
+
+def my_log(message, level):
+    xbmc.log("[PLUGIN] %s: %s" % (__plugin__, message,), level)
+
+my_log("version %s initialized!" % (__version__), xbmc.LOGINFO)
+my_log("profile is %s(%s) initialized!" % (__profile__, __settings__.getAddonInfo('profile')), xbmc.LOGINFO)
+my_log("path is %s(%s) initialized!" % (__addon_path__,__settings__.getAddonInfo('path')), xbmc.LOGINFO)
+
 
 
 
@@ -46,8 +55,7 @@ adaptive = (__settings__.getSetting('adaptive_mode') == 'true')
 set_res = int(__settings__.getSetting('resolution'))
 
 
-def my_log(message, level):
-    xbmc.log("[PLUGIN] %s: %s" % (__plugin__, message), level)
+
 
 def format_time(seconds):
     secs, mins = math.modf(float(seconds) / float(60))
@@ -196,18 +204,30 @@ def prepstream(stream_url):
         return req_res_pl.uri
 
 def handle_panel(panel, li):
-    art_cache = cache_art(panel.images.kodi_setart_dict())
-    li.setArt(art_cache)
+    if panel.images:
+        art_cache = cache_art(panel.images.kodi_setart_dict())
+        li.setArt(art_cache)
 
     if panel.ptype == "series":
         #item_res = session.get_cms(cms_url + 'series/' + panel.id)
         li.setInfo('video', panel.kodi_info())
         li.setProperty('TotalSeasons', str(panel.season_count))
         li.setProperty('TotalEpisodes', str(panel.episode_count))
+        delete_link = panel.actions.get('watchlist/delete')
+        if not delete_link:
+           #TODO: fix this
+           li.addContextMenuItems([('Add to watchlist',
+                                    "ActivateWindow(10025,'plugin://plugin.video.vrv/"
+                                    "add_to_watchlist?rid={}',return)".format(panel.id))])
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(series, panel.id), li, True)
     elif panel.ptype == "movie_listing":
         #item_res = session.get_cms(cms_url + 'movie_listings/' + panel.id)
         li.setInfo('video', panel.kodi_info())
+        delete_link = panel.actions.get('watchlist/delete')
+        if not delete_link:
+           li.addContextMenuItems([('Add to watchlist',
+                                    "ActivateWindow(10025,'plugin://plugin.video.vrv/"
+                                    "add_to_watchlist?rid={}',return)".format(panel.id))])
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(movie_listing, panel.id), li, True)
     elif panel.ptype == "movie":
         #item_res = session.get_cms(cms_url + 'movies/' + panel.id)
@@ -295,6 +315,17 @@ def search():
                                                                       n=result_size), li, True)
         xbmcplugin.endOfDirectory(plugin.handle)
 
+@plugin.route('/add_to_watchlist')
+def add_to_watchlist():
+    ref_id = plugin.args.get('rid',[None])[0]
+    if ref_id:
+        session.add_to_watchlist(ref_id)
+
+@plugin.route('/delete_from_watchlist')
+def delete_from_watchlist():
+    wl_id = plugin.args.get('wlid',[None])[0]
+    if wl_id:
+        session.delete_from_watchlist(wl_id)
 
 @plugin.route('/watchlist')
 def watchlist():
@@ -305,6 +336,13 @@ def watchlist():
         pan = i.panel
         li = ListItem('{} {} ({})'.format(pan.title, pan.lang, capwords(pan.channel_id)))
         handle_panel(i.panel, li)
+        delete_link = i.actions.get('watchlist/delete')
+        my_log("Available actions for {} are {}.".format(i.panel.id, i.actions), xbmc.LOGDEBUG)
+        if delete_link:
+           my_log("Found delete_link.", xbmc.LOGDEBUG)
+           wl_id = delete_link.split('/')[-1]
+           li.addContextMenuItems([('Remove from watchlist',
+               "RunScript({},{})".format(wl_id))],replace=True)
 
     if wl.links.get('next'):
         li = ListItem('More...')
@@ -425,10 +463,10 @@ def feed(fid):
     if feed.status_code == 200:
        for item in feed.items:
            li = ListItem(item.title)
-           if item.rclass == 'panel'
+           if item.rclass == 'panel':
               handle_panel(item, li)
-           elif item.rclass == 'curated_feed'
-              xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(feed, item.id)
+           elif item.rclass == 'curated_feed':
+              xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(feed, item.id), True)
        xbmcplugin.endOfDirectory(plugin.handle)
            
 
