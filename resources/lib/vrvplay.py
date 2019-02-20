@@ -1,9 +1,10 @@
 import xbmc
 import vrvlib
 
+
 class VRVPlayer(xbmc.Player):
 
-    def __init__ (self, session):
+    def __init__(self, session):
         xbmc.Player.__init__(self)
         self.session = session
         self.position = 0
