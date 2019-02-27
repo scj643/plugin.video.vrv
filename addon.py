@@ -18,21 +18,26 @@ from xbmcgui import ListItem, Dialog
 from string import capwords
 from urllib import quote, unquote, quote_plus, urlencode
 from resources.lib.vrvplay import VRVPlayer
+from sub_conv import convert_subs
 
 plugin = routing.Plugin()
 
 _plugId = "plugin.video.vrv"
 
 __plugin__ = "VRV"
-__version__ = "0.1.0"
+__version__ = "0.2.1"
 __settings__ = xbmcaddon.Addon(id=_plugId)
 __profile__ = xbmc.translatePath(__settings__.getAddonInfo('profile')).decode("utf-8")
 
 __addon_path__ = xbmc.translatePath(__settings__.getAddonInfo('path')).decode("utf-8")
 
 artwork_temp = os.path.join(__profile__, 'art_temp')
+sub_temp = os.path.join(__profile__, 'sub_temp')
 if not os.path.exists(artwork_temp):
     os.mkdir(artwork_temp)
+
+if not os.path.exists(sub_temp):
+    os.mkdir(sub_temp)
 
 
 def my_log(message, level):
@@ -40,8 +45,8 @@ def my_log(message, level):
 
 
 my_log("version %s initialized!" % __version__, xbmc.LOGINFO)
-my_log("profile is %s(%s) initialized!" % (__profile__, __settings__.getAddonInfo('profile')), xbmc.LOGINFO)
-my_log("path is %s(%s) initialized!" % (__addon_path__, __settings__.getAddonInfo('path')), xbmc.LOGINFO)
+my_log("profile is %s(%s)" % (__profile__, __settings__.getAddonInfo('profile')), xbmc.LOGINFO)
+my_log("path is %s(%s)" % (__addon_path__, __settings__.getAddonInfo('path')), xbmc.LOGINFO)
 
 session = VRV(__settings__.getSetting('vrv_username'),
               __settings__.getSetting('vrv_password'),
@@ -94,6 +99,19 @@ def cache_art(art_dict):
             art_dict[type] = filename
     return art_dict
 
+def get_sub(sub_url):
+    filename = os.path.join(sub_temp, sub_url.split('/')[-1].split('?')[0])
+    sub_res = session.session.get(sub_url)
+    if sub_res.status_code == 200:
+        image_file = open(filename, 'wb')
+        image_file.write(sub_res.content)
+        image_file.close()
+        if '.vtt' in filename:
+            filename = convert_subs(filename)
+    else:
+        filename = sub_url
+    return filename
+
 
 def setup_player(playable_obj):
     timeout = 30
@@ -138,7 +156,8 @@ def setup_player(playable_obj):
 
         my_log("Setting up player object. PlayHead position is %s." % (last_pos), xbmc.LOGDEBUG)
         if stream.en_subtitle:
-            li.setSubtitles([stream.en_subtitle.url])
+            li.setSubtitles([get_sub(stream.en_subtitle.url)])
+
         player.play(prepstream(stream.hls), li, False, last_pos)
         tried_seek = False
         my_log("Told Kodi to play stream URL. Now we wait...", xbmc.LOGDEBUG)

@@ -80,16 +80,6 @@ class VRV(object):
         else:
             return response
 
-    def get_url(self, path, match_type=True):
-        response = self.session.get(path)
-        if response.status_code == 200:
-            if match_type:
-                return vrv_json_hook(response.json())
-            else:
-                return response.json()
-        else:
-            return response
-
     def get_watchlist(self, page_length=20, page=1):
         url = '{api}{accounts}/{uid}/watchlist?page_size={length}&page={page}&version=v2'.format(
             api=self.api_url, accounts=self.links.get('accounts'),
