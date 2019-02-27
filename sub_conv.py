@@ -53,37 +53,36 @@ def convert_subs(vtt_filename):
     #Event line template
     event_template = "Dialogue: {Layer},{Start},{End},{Style},{Name},{MarginL},{MarginR},{MarginV},{Effect},{Text}\n"
 
-    #Setup initial values for the
+    #Setup initial values for the styles
     dialogue_font_settings = {
         'Name':'dialogue',
         'Font':"Arial","Fontsize":"24",
-        'PrimaryColour':"&H0000FFFF",
+        'PrimaryColour':"&H0000FFFF", #set the color yellow. NOTE: this is AABBGGRR hex notation
         'SecondaryColour':"&H0300FFFF",
         'OutlineColour':"&H00000000",
         'BackColour':"&H02000000",
-        'Bold': "0",
-        'Italic': "0",
-        'Underline': "0",
-        'StrikeOut': "0",
-        'ScaleX': "100",
-        'ScaleY': "100", 'Spacing': "0",
-        'Angle': "0",
+        'Bold': "0", 'Italic': "0", 'Underline': "0", 'StrikeOut': "0",
+        'ScaleX': "100", 'ScaleY': "100", 'Spacing': "0", 'Angle': "0",
         'BorderStyle': "1", 'Outline': "2", 'Shadow': "1",
         'Alignment': "2", 'MarginL': "0", 'MarginR': "0", 'MarginV': "0",
         'Encoding': "1"
     }
 
     caption_font_settings = dict(dialogue_font_settings)
-    caption_font_settings['PrimaryColour'] = "&H00FFFFFF"
+    caption_font_settings['PrimaryColour'] = "&H00FFFFFF" #copy the dialogue profile, but set the color back to white
     if subs:
         ass_fh = open(output_filename, 'wb')
-
+        #write out the header and the dialogue style
         ass_fh.write(ass_header)
         ass_fh.write(line_template.format(**dialogue_font_settings))
 
+        #find the 'special' sub blocks that specify an alignment
         for item in subs.data:
             if "align" in item.position:
+                #tweak the alignment in the styles (can't set alignment in events)
+                # "1" is bottom left, "3" is bottom right (like numpad)
                 if "align:left" in item.position:
+                    #it's probably not neccessary to do the .replace here
                     caption_font_settings['Name'] = item.index.replace('-', '_')
                     caption_font_settings['Alignment'] = "1"
                     ass_fh.write(line_template.format(**caption_font_settings))
@@ -94,35 +93,42 @@ def convert_subs(vtt_filename):
 
         ass_fh.write("\n\n")
         ass_fh.write(event_header)
-
+        #write out the subtitles: ASS calls these events, VTT has these stored in <c> tags
         for item in subs.data:
-            abs_vpos = 10
+            abs_vpos = 10 # don't want the 'default' margin to have the subtitles at
+                          # the absolute edge of the screen
             abs_hpos = 0
             pos_parts = item.position.split()
             for item_pos in pos_parts:
+                #vtt uses percentages, ass uses pixels. convert
                 if 'line' in item_pos:
+                    # vtt's 'line' is percentage from top of screen (usually)
                     item_pos_per = item_pos.split(':')[1].rstrip('%')
                     per_float = float(item_pos_per) / 100
                     abs_vpos = per_float * def_res[1]
                     abs_vpos = def_res[1] - abs_vpos + offset[1]
                     abs_vpos = int(abs_vpos)
                 if 'position' in item_pos:
+                    # while 'position' is percentage from left of screen (usually)
                     item_pos_per = item_pos.split(':')[1].rstrip('%')
                     per_float = float(item_pos_per) / 100
                     abs_hpos = per_float * def_res[0]
                     abs_hpos = abs_hpos + offset[1]
                     abs_hpos = int(abs_hpos)
             item_text = item.text_without_tags.encode('utf-8')
+            #handle the timecodes, need to chop off leading 0 and trailing ms position
             if '.' in item.start.to_time().isoformat():
+                #isoformat doesn't print trailing zeros in ms position,
+                #so we need to account for this. in this case we have ms's
                 start_text = item.start.to_time().isoformat()[1:-4]
-            else:
+            else: # we add trailing zero's back
                 start_text = item.start.to_time().isoformat()[1:] + '.00'
             if '.' in item.end.to_time().isoformat():
                 end_text = item.end.to_time().isoformat()[1:-4]
             else:
                 end_text = item.end.to_time().isoformat()[1:] + '.00'
-            #event_template = "Dialogue: {Layer},{Start},{End},{Style},{Name}," \
-            #                 "{MarginL},{MarginR},{MarginV},{Effect},{Text}\n"
+
+            #create the events, matching the styles to what we used before
             if "align" in item.position:
                 event = {
                     'Layer':"0",
