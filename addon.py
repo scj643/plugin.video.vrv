@@ -26,7 +26,7 @@ plugin = routing.Plugin()
 _plugId = "plugin.video.vrv"
 
 __plugin__ = "VRV"
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 __settings__ = xbmcaddon.Addon(id=_plugId)
 __profile__ = xbmc.translatePath(__settings__.getAddonInfo('profile')).decode("utf-8")
 
@@ -34,6 +34,10 @@ __addon_path__ = xbmc.translatePath(__settings__.getAddonInfo('path')).decode("u
 
 artwork_temp = os.path.join(__profile__, 'art_temp')
 sub_temp = os.path.join(__profile__, 'sub_temp')
+
+if not os.path.exists(__profile__):
+    os.mkdir(__profile__)
+
 if not os.path.exists(artwork_temp):
     os.mkdir(artwork_temp)
 
@@ -49,15 +53,29 @@ my_log("version %s initialized!" % __version__, xbmc.LOGINFO)
 my_log("profile is %s(%s)" % (__profile__, __settings__.getAddonInfo('profile')), xbmc.LOGINFO)
 my_log("path is %s(%s)" % (__addon_path__, __settings__.getAddonInfo('path')), xbmc.LOGINFO)
 
-session = VRV(__settings__.getSetting('vrv_username'),
-              __settings__.getSetting('vrv_password'),
-              __settings__.getSetting('oauth_key'),
-              __settings__.getSetting('oauth_secret'))
-
-cms_url = session.index.links['cms_index.v2'].rstrip('index')
-
+username, password = __settings__.getSetting('vrv_username'), \
+                     __settings__.getSetting('vrv_password')
 adaptive = (__settings__.getSetting('adaptive_mode') == 'true')
 set_res = int(__settings__.getSetting('resolution'))
+
+font_name = __settings__.getSetting('font_name')
+font_size = __settings__.getSetting('font_size')
+
+if username and password:
+    session = VRV(__settings__.getSetting('vrv_username'),
+                  __settings__.getSetting('vrv_password'),
+                  __settings__.getSetting('oauth_key'),
+                  __settings__.getSetting('oauth_secret'))
+else:
+    dialog = Dialog()
+    dialog.notification("VRV", "Login failed. Check login under settings.", time=1000, sound=False)
+    session = None
+
+
+
+if session:
+    cms_url = session.index.links['cms_index.v2'].rstrip('index')
+
 
 
 def format_time(seconds):
@@ -87,17 +105,17 @@ def get_parent_info(item):
 
 
 def cache_art(art_dict):
-    for type, url in art_dict.items():
-        filename = os.path.join(artwork_temp, type + '_' + '_'.join(url.split('/')[-2:]))
+    for atype, url in art_dict.items():
+        filename = os.path.join(artwork_temp, atype + '_' + '_'.join(url.split('/')[-2:]))
         if not os.path.exists(filename):
             image_res = session.session.get(url)
             if image_res.status_code == 200:
                 image_file = open(filename, 'wb')
                 image_file.write(image_res.content)
                 image_file.close()
-                art_dict[type] = filename
+                art_dict[atype] = filename
         else:
-            art_dict[type] = filename
+            art_dict[atype] = filename
     return art_dict
 
 def get_sub(sub_url):
@@ -108,7 +126,7 @@ def get_sub(sub_url):
         image_file.write(sub_res.content)
         image_file.close()
         if '.vtt' in filename:
-            filename = convert_subs(filename)
+            filename = convert_subs(filename, font=font_name, size=font_size)
     else:
         filename = sub_url
     return filename

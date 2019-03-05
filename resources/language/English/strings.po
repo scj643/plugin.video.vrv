@@ -37,6 +37,18 @@ msgctxt "#30006"
 msgid "Force Resolution (if Use ISA is off)"
 msgstr ""
 
+msgctxt "#30007"
+msgid "WARNING: Changing these can affect readability of VTT (hidive) subs."
+msgstr ""
+
+msgctxt "#30008"
+msgid "Font"
+msgstr ""
+
+msgctxt "#30009"
+msgid "Size"
+msgstr ""
+
 msgctxt "#30501"
 msgid "General"
 msgstr ""
@@ -47,4 +59,8 @@ msgstr ""
 
 msgctxt "#30503"
 msgid "Resolution Settings"
+msgstr ""
+
+msgctxt "#30504"
+msgid "WebVTT Subtitle Settings"
 msgstr ""

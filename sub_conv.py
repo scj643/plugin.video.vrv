@@ -11,7 +11,7 @@ def my_log(message, level):
 
 
 #TODO: Add runtime customizable subtitle options
-def convert_subs(vtt_filename, font="Arial", size="26"):
+def convert_subs(vtt_filename, font="", size=""):
     output_filename = vtt_filename
     try:
         subs = WebVTTFile.open(vtt_filename)
@@ -56,16 +56,16 @@ def convert_subs(vtt_filename, font="Arial", size="26"):
     event_template = "Dialogue: {Layer},{Start},{End},{Style},{Name},{MarginL},{MarginR},{MarginV},{Effect},{Text}\n"
 
     if not font:
-        font="Arial"
+        font = "Arial"
     if not size:
-        size="26"
+        size = "24"
     #Setup initial values for the styles
     initial_font_settings = {
-        'Font':font,"Fontsize":size,
-        'PrimaryColour':"&H00FFFFFF", #NOTE: this is AABBGGRR hex notation
-        'SecondaryColour':"&H0300FFFF",
-        'OutlineColour':"&H00000000",
-        'BackColour':"&H02000000",
+        'Font': font, "Fontsize": size,
+        'PrimaryColour': "&H00FFFFFF", #NOTE: this is AABBGGRR hex notation
+        'SecondaryColour': "&H0300FFFF",
+        'OutlineColour': "&H00000000",
+        'BackColour': "&H02000000",
         'Bold': "0", 'Italic': "0", 'Underline': "0", 'StrikeOut': "0",
         'ScaleX': "100", 'ScaleY': "100", 'Spacing': "0", 'Angle': "0",
         'BorderStyle': "1", 'Outline': "2", 'Shadow': "1",
@@ -133,7 +133,7 @@ def convert_subs(vtt_filename, font="Arial", size="26"):
                     item_pos_per = item_pos.split(':')[1].rstrip('%')
                     per_float = float(item_pos_per) / 100
                     abs_hpos = per_float * def_res[0]
-                    abs_hpos = abs_hpos + offset[1]
+                    abs_hpos = abs_hpos + offset[0]
                     abs_hpos = int(abs_hpos)
             item_text = item.text_without_tags.encode('utf-8')
             #handle the timecodes, need to chop off leading 0 and trailing ms position
@@ -151,16 +151,16 @@ def convert_subs(vtt_filename, font="Arial", size="26"):
             #create the events, matching the styles to what we used before
             if "caption" in item.text or "Caption" in item.text:
                 event = {
-                    'Layer':"0",
-                    'Start':start_text,
-                    'End':end_text,
-                    'Style':item.index.replace('-', '_'),
-                    'Name':item.index,
-                    'MarginL':abs_hpos,
-                    'MarginR':"0",
-                    'MarginV':abs_vpos,
-                    'Effect':"",
-                    'Text':item_text
+                    'Layer': "0",
+                    'Start': start_text,
+                    'End': end_text,
+                    'Style': item.index.replace('-', '_'),
+                    'Name': item.index,
+                    'MarginL': abs_hpos,
+                    'MarginR': "0",
+                    'MarginV': abs_vpos,
+                    'Effect': "",
+                    'Text': item_text
                 }
             elif "song" in item.text or "Song" in item.text:
                 event = {
