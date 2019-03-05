@@ -227,6 +227,7 @@ class Episode(VRVResponse):
         self.streams = self.links.get('streams')
         self.id = response.get('id')
         self.series_id = response.get('series_id')
+        self.available_date = response.get('available_date')
         if 'next_episode_id' in response.keys():
             self.next_episode_id = response.get('next_episode_id')
         else:

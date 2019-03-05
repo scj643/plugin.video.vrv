@@ -5,11 +5,13 @@ import xbmc
 
 __plugin__ = "VRV"
 
+
 def my_log(message, level):
     xbmc.log("[PLUGIN] %s: %s" % (__plugin__, message,), level)
 
+
 #TODO: Add runtime customizable subtitle options
-def convert_subs(vtt_filename):
+def convert_subs(vtt_filename, font="Arial", size="26"):
     output_filename = vtt_filename
     try:
         subs = WebVTTFile.open(vtt_filename)
@@ -24,7 +26,7 @@ def convert_subs(vtt_filename):
     #Internal rendering resolution used for scaling. Messing with this affects font sizes, etc.
     def_res = (720, 480)
     #Offset used for correcting the output.
-    offset = (0, -35)
+    offset = (0, -45)
     #File header
     ass_header_temp = "[Script Info]\n" \
                       "; This is an Advanced Sub Station Alpha v4+ script.\n" \
@@ -53,11 +55,14 @@ def convert_subs(vtt_filename):
     #Event line template
     event_template = "Dialogue: {Layer},{Start},{End},{Style},{Name},{MarginL},{MarginR},{MarginV},{Effect},{Text}\n"
 
+    if not font:
+        font="Arial"
+    if not size:
+        size="26"
     #Setup initial values for the styles
-    dialogue_font_settings = {
-        'Name':'dialogue',
-        'Font':"Arial","Fontsize":"24",
-        'PrimaryColour':"&H0000FFFF", #set the color yellow. NOTE: this is AABBGGRR hex notation
+    initial_font_settings = {
+        'Font':font,"Fontsize":size,
+        'PrimaryColour':"&H00FFFFFF", #NOTE: this is AABBGGRR hex notation
         'SecondaryColour':"&H0300FFFF",
         'OutlineColour':"&H00000000",
         'BackColour':"&H02000000",
@@ -68,28 +73,43 @@ def convert_subs(vtt_filename):
         'Encoding': "1"
     }
 
-    caption_font_settings = dict(dialogue_font_settings)
-    caption_font_settings['PrimaryColour'] = "&H00FFFFFF" #copy the dialogue profile, but set the color back to white
+    styles = dict()
+
+    styles['dialogue'] = dict(initial_font_settings)
+    styles['dialogue']['PrimaryColour'] = "&H0000FFFF"  #set the color to yellow
+    styles['dialogue']['Name'] = 'dialogue'
+
+    styles['song_lyrics'] = dict(initial_font_settings)
+    styles['song_lyrics']['PrimaryColour'] = "&H00FFFF00"  # set the color to blue
+    styles['song_lyrics']['Name'] = 'song_lyrics'
+
+    styles['captions'] = dict(initial_font_settings)
+    #copy the initial values, but don't make changes. reserved for future use
+
     if subs:
         ass_fh = open(output_filename, 'wb')
         #write out the header and the dialogue style
         ass_fh.write(ass_header)
-        ass_fh.write(line_template.format(**dialogue_font_settings))
-
+        ass_fh.write(line_template.format(**styles['dialogue']))
+        ass_fh.write(line_template.format(**styles['song_lyrics']))
         #find the 'special' sub blocks that specify an alignment
         for item in subs.data:
-            if "align" in item.position:
+            if "align" in item.position or "Caption" in item.text or "caption" in item.text:
                 #tweak the alignment in the styles (can't set alignment in events)
                 # "1" is bottom left, "3" is bottom right (like numpad)
                 if "align:left" in item.position:
                     #it's probably not neccessary to do the .replace here
-                    caption_font_settings['Name'] = item.index.replace('-', '_')
-                    caption_font_settings['Alignment'] = "1"
-                    ass_fh.write(line_template.format(**caption_font_settings))
+                    styles['captions']['Name'] = item.index.replace('-', '_')
+                    styles['captions']['Alignment'] = "1"
+                    ass_fh.write(line_template.format(**styles['captions']))
                 elif "align:right" in item.position:
-                    caption_font_settings['Name'] = item.index.replace('-', '_')
-                    caption_font_settings['Alignment'] = "3"
-                    ass_fh.write(line_template.format(**caption_font_settings))
+                    styles['captions']['Name'] = item.index.replace('-', '_')
+                    styles['captions']['Alignment'] = "3"
+                    ass_fh.write(line_template.format(**styles['captions']))
+                else:
+                    styles['captions']['Name'] = item.index.replace('-', '_')
+                    styles['captions']['Alignment'] = "2"
+                    ass_fh.write(line_template.format(**styles['captions']))
 
         ass_fh.write("\n\n")
         ass_fh.write(event_header)
@@ -129,7 +149,7 @@ def convert_subs(vtt_filename):
                 end_text = item.end.to_time().isoformat()[1:] + '.00'
 
             #create the events, matching the styles to what we used before
-            if "align" in item.position:
+            if "caption" in item.text or "Caption" in item.text:
                 event = {
                     'Layer':"0",
                     'Start':start_text,
@@ -141,6 +161,19 @@ def convert_subs(vtt_filename):
                     'MarginV':abs_vpos,
                     'Effect':"",
                     'Text':item_text
+                }
+            elif "song" in item.text or "Song" in item.text:
+                event = {
+                    'Layer': "0",
+                    'Start': start_text,
+                    'End': end_text,
+                    'Style': "song_lyrics",
+                    'Name': item.index,
+                    'MarginL': abs_hpos,
+                    'MarginR': "0",
+                    'MarginV': abs_vpos,
+                    'Effect': "",
+                    'Text': item_text
                 }
             else:
                 event = {

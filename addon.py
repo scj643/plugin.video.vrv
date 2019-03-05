@@ -13,6 +13,7 @@ import xbmcaddon
 import xbmcplugin
 import xbmcgui
 
+from datetime import datetime
 from resources.lib.vrvlib import VRV
 from xbmcgui import ListItem, Dialog
 from string import capwords
@@ -522,6 +523,12 @@ def season(nid):
                 title = u"{} [Status: Completed]".format(i.title)
             else:
                 title = u"{} [Status: In Progress: {}]".format(i.title, format_time(iph.position))
+        if not i.streams:
+            if i.available_date:
+                a_date = datetime.strptime(i.available_date,'%Y-%m-%dT%H:%M:%SZ')
+                title="{} [TBA on {}]".format(title,a_date.strftime("%m/%d/%y %I:%M:%S %P"))
+            else:
+                title = "{} [NOT AVAILABLE]".format(title)
         li = ListItem(title)
         li.setLabel2(str(i.episode_number))
         art_cache = cache_art(i.images.kodi_setart_dict())
@@ -535,9 +542,25 @@ def season(nid):
 
 @plugin.route('/episode/<eid>')
 def episode(eid):
-    episode = session.get_cms(cms_url + 'episodes/' + eid)
-    setup_player(episode)
 
+    episode = session.get_cms(cms_url + 'episodes/' + eid)
+    if episode.available_date:
+        try:
+            a_date = datetime.strptime(episode.available_date, '%Y-%m-%dT%H:%M:%SZ')
+            #for some odd reason, the statement comes back with 'NoneType' callable
+            #exception on datetime, I believe. handling this so it doesn't throw
+            #'spurious' exceptions
+        except:
+            a_date = ""
+    else:
+        a_date = ""
+    if episode.streams:
+        setup_player(episode)
+    else:
+        dialog = Dialog()
+        dialog.notification("VRV", "No streams available.", time=1000, sound=False)
+        if a_date:
+            dialog.notification("VRV","TBA on {}".format(a_date), time=1000,sound=False)
 
 if __name__ == '__main__':
     plugin.run()
