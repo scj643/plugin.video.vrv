@@ -5,6 +5,10 @@ Created by scj643 on 10/19/2017
 from urllib import urlencode, quote
 
 from requests_oauthlib import OAuth1Session
+from datetime import datetime
+import _strptime
+import time
+
 
 HEADERS = {
     'User-Agent': 'VRV/968 (iPad; iOS 10.2; Scale/2.00)',
@@ -50,27 +54,56 @@ class VRV(object):
         self.links = self.index.links
         self.auth = None
         self.cms_index = None
+        self.logged_in = False
         if email and password:
             self.login(email, password)
-            self.cms_index = self.get_cms(self.index.links.get('cms_index.v2'))
+            if self.logged_in:
+                self.cms_index = self.get_cms(self.index.links.get('cms_index.v2'))
 
     def login(self, email=None, password=None):
         j = {'email': email, 'password': password}
         self.auth = self.session.post(self.api_url + self.actions['authenticate_by_credentials'], j).json()
-        self.session.auth.client.resource_owner_key = self.auth['oauth_token']
-        self.session.auth.client.resource_owner_secret = self.auth['oauth_token_secret']
-        self.index = Index(self.session.get(self.api_url + self.index_path).json())
-
+        try:
+            self.session.auth.client.resource_owner_key = self.auth['oauth_token']
+            self.session.auth.client.resource_owner_secret = self.auth['oauth_token_secret']
+            self.index = Index(self.session.get(self.api_url + self.index_path).json())
+            self.logged_in = True
+        except:
+            self.logged_in = False
+        
     def get_cms(self, path, match_type=True):
         """
         :param path:
         :param match_type: use vrv_json_hook after retrieval
         :return: a request that has the CMS args attached
         """
-        if '?' not in path:
-            path += '?' + urlencode(self.index.cms_signing)
+        #print("path is",path)
+        #print("avail policies:",self.index.signing_policies.keys())
+        #print("index is",self.index.response)
+        active_policy = None
+        for sign_path in self.index.signing_policies:
+            if sign_path in path:
+                active_policy = self.index.signing_policies[sign_path]
+        if active_policy:
+            pass
+            #print(active_policy)
         else:
-            path += '&' + urlencode(self.index.cms_signing)
+            for sign_path in self.index.signing_policies:
+                 if 'disc/private' in sign_path:
+                     active_policy = self.index.signing_policies[sign_path]
+            #print("Couldn't get active policy, defaulting to disc/private")
+        expires_str = active_policy['expires'].split('+')[0]
+        expires_dt = time.strptime(expires_str,'%Y-%m-%dT%H:%M:%S')
+        expires_ts = int(time.mktime(expires_dt))
+        policy = active_policy['Policy']
+        signature = active_policy['Signature']
+        kp_id = active_policy['Key-Pair-Id']
+        new_params = "Policy={}&Signature={}&Key-Pair-Id={}&Expires={}&endpoint_expires={}".format(policy,signature,kp_id,expires_ts,expires_ts)
+
+        if '?' not in path:
+            path += '?' + new_params
+        else:
+            path += '&' + new_params
         response = self.session.get(self.api_url + path)
         if response.status_code == 200:
             if match_type:
@@ -342,6 +375,25 @@ class Index(VRVResponse):
     def __init__(self, response):
         super(Index, self).__init__(response)
         self.cms_signing = response.get('cms_signing')
+        self.signing_policies = self.parse_policy(response.get('signing_policies'))
+    
+    @staticmethod
+    def parse_policy(policy_list):
+        sign_dict = dict()
+        if policy_list:
+            for subd in policy_list:
+                path = subd.get('path')
+                if 'v*' in path:
+                    path = path.replace('v*','v2')
+
+                if path in sign_dict:
+                    sign_dict[path][subd['name']] = subd['value']
+                    sign_dict[path]['expires'] = subd['expires']
+                else:
+                    sign_dict[path] = dict()
+                    sign_dict[path][subd['name']] = subd['value']
+                    sign_dict[path]['expires'] = subd['expires']
+        return sign_dict
 
 
 class DiscIndex(VRVResponse):
