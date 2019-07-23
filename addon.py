@@ -26,7 +26,7 @@ plugin = routing.Plugin()
 _plugId = "plugin.video.vrv"
 
 __plugin__ = "VRV"
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 __settings__ = xbmcaddon.Addon(id=_plugId)
 __profile__ = xbmc.translatePath(__settings__.getAddonInfo('profile')).decode("utf-8")
 
