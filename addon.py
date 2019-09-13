@@ -13,26 +13,36 @@ import xbmcaddon
 import xbmcplugin
 import xbmcgui
 
+from datetime import datetime
 from resources.lib.vrvlib import VRV
 from xbmcgui import ListItem, Dialog
 from string import capwords
-from urllib import quote, unquote, quote_plus, urlencode
-from resources.lib.vrvplay import VRVPlayer
+from urllib import quote_plus, urlencode
+
+from sub_conv import convert_subs
 
 plugin = routing.Plugin()
 
 _plugId = "plugin.video.vrv"
 
 __plugin__ = "VRV"
-__version__ = "0.1.0"
+__version__ = "0.2.3"
 __settings__ = xbmcaddon.Addon(id=_plugId)
 __profile__ = xbmc.translatePath(__settings__.getAddonInfo('profile')).decode("utf-8")
 
 __addon_path__ = xbmc.translatePath(__settings__.getAddonInfo('path')).decode("utf-8")
 
 artwork_temp = os.path.join(__profile__, 'art_temp')
+sub_temp = os.path.join(__profile__, 'sub_temp')
+
+if not os.path.exists(__profile__):
+    os.mkdir(__profile__)
+
 if not os.path.exists(artwork_temp):
     os.mkdir(artwork_temp)
+
+if not os.path.exists(sub_temp):
+    os.mkdir(sub_temp)
 
 
 def my_log(message, level):
@@ -40,18 +50,34 @@ def my_log(message, level):
 
 
 my_log("version %s initialized!" % __version__, xbmc.LOGINFO)
-my_log("profile is %s(%s) initialized!" % (__profile__, __settings__.getAddonInfo('profile')), xbmc.LOGINFO)
-my_log("path is %s(%s) initialized!" % (__addon_path__, __settings__.getAddonInfo('path')), xbmc.LOGINFO)
+my_log("profile is %s(%s)" % (__profile__, __settings__.getAddonInfo('profile')), xbmc.LOGDEBUG)
+my_log("path is %s(%s)" % (__addon_path__, __settings__.getAddonInfo('path')), xbmc.LOGDEBUG)
+
+username, password = __settings__.getSetting('vrv_username'), \
+                     __settings__.getSetting('vrv_password')
+adaptive = (__settings__.getSetting('adaptive_mode') == 'true')
+set_res = int(__settings__.getSetting('resolution'))
+
+font_name = __settings__.getSetting('font_name')
+font_size = __settings__.getSetting('font_size')
+
+if not (username and password):
+    dialog = Dialog()
+    dialog.notification("VRV", "Username(email) and password not set. Check login under settings.", time=1000, sound=False)
 
 session = VRV(__settings__.getSetting('vrv_username'),
               __settings__.getSetting('vrv_password'),
               __settings__.getSetting('oauth_key'),
               __settings__.getSetting('oauth_secret'))
 
-cms_url = session.index.links['cms_index.v2'].rstrip('index')
+if not session.logged_in:
+    dialog = Dialog()
+    dialog.notification("VRV", "Login failed. Check login under settings.", time=1000, sound=False)
 
-adaptive = (__settings__.getSetting('adaptive_mode') == 'true')
-set_res = int(__settings__.getSetting('resolution'))
+
+if session and session.logged_in:
+    cms_url = session.index.links['cms_index.v2'].rstrip('index')
+
 
 
 def format_time(seconds):
@@ -65,10 +91,12 @@ def get_parent_art(item):
     art_dict = {}
     if (item.rclass == 'episode' or item.rclass == 'season') and item.series_id:
         parent = session.get_cms(cms_url + 'series/' + item.series_id)
-        art_dict = cache_art(parent.images.kodi_setart_dict())
+        if parent.images:
+            art_dict = cache_art(parent.images.kodi_setart_dict())
     elif (item.rclass == 'movie') and item.listing_id:
         parent = session.get_cms(cms_url + 'movie_listings/' + item.listing_id)
-        art_dict = cache_art(parent.images.kodi_setart_dict())
+        if parent.images:
+            art_dict = cache_art(parent.images.kodi_setart_dict())
     return art_dict
 
 
@@ -81,18 +109,31 @@ def get_parent_info(item):
 
 
 def cache_art(art_dict):
-    for type, url in art_dict.items():
-        filename = os.path.join(artwork_temp, type + '_' + '_'.join(url.split('/')[-2:]))
+    for atype, url in art_dict.items():
+        filename = os.path.join(artwork_temp, atype + '_' + '_'.join(url.split('/')[-2:]))
         if not os.path.exists(filename):
             image_res = session.session.get(url)
             if image_res.status_code == 200:
                 image_file = open(filename, 'wb')
                 image_file.write(image_res.content)
                 image_file.close()
-                art_dict[type] = filename
+                art_dict[atype] = filename
         else:
-            art_dict[type] = filename
+            art_dict[atype] = filename
     return art_dict
+
+def get_sub(sub_url):
+    filename = os.path.join(sub_temp, sub_url.split('/')[-1].split('?')[0])
+    sub_res = session.session.get(sub_url)
+    if sub_res.status_code == 200:
+        image_file = open(filename, 'wb')
+        image_file.write(sub_res.content)
+        image_file.close()
+        if '.vtt' in filename:
+            filename = convert_subs(filename, font=font_name, size=font_size)
+    else:
+        filename = sub_url
+    return filename
 
 
 def setup_player(playable_obj):
@@ -119,12 +160,14 @@ def setup_player(playable_obj):
         li = ListItem(playable_obj.title)
         if playable_obj.media_type == "episode":
             li.setLabel2(str(playable_obj.episode_number))
-        art_cache = cache_art(playable_obj.images.kodi_setart_dict())
+        if playable_obj.images:
+            art_cache = cache_art(playable_obj.images.kodi_setart_dict())
+            li.setArt(art_cache)
         try:
             parent_ac = get_parent_art(playable_obj)
         except:
             parent_ac = None
-        li.setArt(art_cache)
+        
         if parent_ac:
             li.setArt({'fanart': parent_ac.get('fanart')})
         li.setInfo('video', playable_obj.kodi_info())
@@ -138,7 +181,8 @@ def setup_player(playable_obj):
 
         my_log("Setting up player object. PlayHead position is %s." % (last_pos), xbmc.LOGDEBUG)
         if stream.en_subtitle:
-            li.setSubtitles([stream.en_subtitle.url])
+            li.setSubtitles([get_sub(stream.en_subtitle.url)])
+
         player.play(prepstream(stream.hls), li, False, last_pos)
         tried_seek = False
         my_log("Told Kodi to play stream URL. Now we wait...", xbmc.LOGDEBUG)
@@ -254,29 +298,40 @@ def handle_panel(panel, li, set_menu=True):
 def index():
     item_tuple = (("Watchlist", "/watchlist"), ("Channels", "/channels"), ("Search", "/search"),
                   ("Feeds/Recommended", "/feeds"))
-    for title, route in item_tuple:
-        li = ListItem(title)
-        xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for_path(route), li, True)
+    if session.logged_in:
+        for title, route in item_tuple:
+            li = ListItem(title)
+            xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for_path(route), li, True)
     xbmcplugin.endOfDirectory(plugin.handle)
 
 
 @plugin.route('/feeds')
 def feeds():
-    cms_index = session.get_cms(session.index.links['cms_index.v2'])
-    pri_feed = session.get_cms(cms_index.links['primary_feed'])
-    home_feeds = session.get_cms(cms_index.links['home_feeds'])
-
-    li = ListItem("Recommended:")
-    xbmcplugin.addDirectoryItem(plugin.handle, None, li, True)
-    for rec_item in pri_feed.items:
-        li = ListItem(rec_item.title)
-        handle_panel(rec_item, li)
-    li = ListItem("Other Feeds:")
-    xbmcplugin.addDirectoryItem(plugin.handle, None, li, True)
-    for feed_item in home_feeds.items:
-        if feed_item.rclass == 'curated_feed':
-            li = ListItem(feed_item.title)
-            xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(feed, feed_item.id), li, True)
+    cms_links = session.cms_index.links
+    if 'primary_feed' in cms_links:
+        pri_feed = session.get_cms(session.cms_index.links['primary_feed'])
+    else:
+        pri_feed = None
+    if 'home_feeds' in cms_links:
+        home_feeds = session.get_cms(session.cms_index.links['home_feeds'])
+    else:
+        home_feeds = None
+    if pri_feed:
+        li = ListItem("Recommended:")
+        xbmcplugin.addDirectoryItem(plugin.handle, None, li, True)
+        for rec_item in pri_feed.items:
+            li = ListItem(rec_item.title)
+            handle_panel(rec_item, li)
+    if home_feeds:
+        li = ListItem("Other Feeds:")
+        xbmcplugin.addDirectoryItem(plugin.handle, None, li, True)
+        for feed_item in home_feeds.items:
+            if feed_item.rclass == 'curated_feed':
+                li = ListItem(feed_item.title)
+                xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(feed, feed_item.id), li, True)
+    if not pri_feed and not home_feeds:
+        li = ListItem("Sorry, couldn't load feeds.")
+        xbmcplugin.addDirectoryItem(plugin.handle, None, li, True)
     xbmcplugin.endOfDirectory(plugin.handle)
 
 
@@ -439,9 +494,11 @@ def movie_listing(nid):
     for i in movies.items:
         stream = session.get_cms(i.streams)
         li = ListItem(i.title)
-        art_cache = cache_art(i.images.kodi_setart_dict())
+        if i.images:
+            art_cache = cache_art(i.images.kodi_setart_dict())
+            li.setArt(art_cache)
         parent_ac = get_parent_art(i)
-        li.setArt(art_cache)
+        
         li.setInfo('video', i.kodi_info())
         li.setArt({'fanart': parent_ac.get('fanart')})
         if stream.en_subtitle:
@@ -503,11 +560,18 @@ def season(nid):
                 title = u"{} [Status: Completed]".format(i.title)
             else:
                 title = u"{} [Status: In Progress: {}]".format(i.title, format_time(iph.position))
+        if not i.streams:
+            if i.available_date:
+                a_date = time.strptime(i.available_date,'%Y-%m-%dT%H:%M:%SZ')
+                title="{} [TBA on {}]".format(title,a_date.strftime("%m/%d/%y %I:%M:%S %P"))
+            else:
+                title = "{} [NOT AVAILABLE]".format(title)
         li = ListItem(title)
         li.setLabel2(str(i.episode_number))
-        art_cache = cache_art(i.images.kodi_setart_dict())
+        if i.images:
+            art_cache = cache_art(i.images.kodi_setart_dict())
+            li.setArt(art_cache)
         parent_ac = get_parent_art(i)
-        li.setArt(art_cache)
         li.setArt({'fanart': parent_ac.get('fanart')})
         li.setInfo('video', i.kodi_info())
         xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(episode, i.id), li)
@@ -516,9 +580,25 @@ def season(nid):
 
 @plugin.route('/episode/<eid>')
 def episode(eid):
-    episode = session.get_cms(cms_url + 'episodes/' + eid)
-    setup_player(episode)
 
+    episode = session.get_cms(cms_url + 'episodes/' + eid)
+    if episode.available_date:
+        try:
+            a_date = datetime.strptime(episode.available_date, '%Y-%m-%dT%H:%M:%SZ')
+            #for some odd reason, the statement comes back with 'NoneType' callable
+            #exception on datetime, I believe. handling this so it doesn't throw
+            #'spurious' exceptions
+        except:
+            a_date = ""
+    else:
+        a_date = ""
+    if episode.streams:
+        setup_player(episode)
+    else:
+        dialog = Dialog()
+        dialog.notification("VRV", "No streams available.", time=1000, sound=False)
+        if a_date:
+            dialog.notification("VRV","TBA on {}".format(a_date), time=1000,sound=False)
 
 if __name__ == '__main__':
     plugin.run()

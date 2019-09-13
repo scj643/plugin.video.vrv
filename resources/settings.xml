@@ -10,6 +10,11 @@
     </category>
     <category label="30503">
         <setting id="adaptive_mode" type="bool" label="30005" default="false"/>
-        <setting id="resolution" type="select" label="30006" values="1080|720|480|360"/>
+        <setting id="resolution" type="select" label="30006" values="1080|720|480|360" default="720"/>
+    </category>
+    <category label="30504">
+        <setting label="30007" type="lsep"/>
+        <setting id="font_name" type="text" label="30008" default="Arial"/>
+        <setting id="font_size" type="select" label="30009" values="34|32|28|26|24|22" default="24"/>
     </category>
 </settings>
