@@ -8,6 +8,7 @@ import os
 import m3u8
 import math
 import routing
+import time
 import xbmc
 import xbmcaddon
 import xbmcplugin
@@ -562,8 +563,8 @@ def season(nid):
                 title = u"{} [Status: In Progress: {}]".format(i.title, format_time(iph.position))
         if not i.streams:
             if i.available_date:
-                a_date = time.strptime(i.available_date,'%Y-%m-%dT%H:%M:%SZ')
-                title="{} [TBA on {}]".format(title,a_date.strftime("%m/%d/%y %I:%M:%S %P"))
+                a_date = time.strptime(i.available_date, '%Y-%m-%dT%H:%M:%SZ')
+                title = "{} [TBA on {}]".format(title, time.strftime("%m/%d/%y %I:%M:%S %P", a_date))
             else:
                 title = "{} [NOT AVAILABLE]".format(title)
         li = ListItem(title)
