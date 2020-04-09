@@ -49,6 +49,10 @@ msgctxt "#30009"
 msgid "Size"
 msgstr ""
 
+msgctxt "#30010"
+msgid "Cache art locally on hard drive"
+msgstr ""
+
 msgctxt "#30501"
 msgid "General"
 msgstr ""
@@ -64,3 +68,5 @@ msgstr ""
 msgctxt "#30504"
 msgid "WebVTT Subtitle Settings"
 msgstr ""
+
+

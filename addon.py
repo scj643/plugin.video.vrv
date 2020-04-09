@@ -8,6 +8,7 @@ import os
 import m3u8
 import math
 import routing
+import time
 import xbmc
 import xbmcaddon
 import xbmcplugin
@@ -26,11 +27,12 @@ plugin = routing.Plugin()
 _plugId = "plugin.video.vrv"
 
 __plugin__ = "VRV"
-__version__ = "0.2.3"
+__version__ = "0.2.4"
 __settings__ = xbmcaddon.Addon(id=_plugId)
 __profile__ = xbmc.translatePath(__settings__.getAddonInfo('profile')).decode("utf-8")
 
 __addon_path__ = xbmc.translatePath(__settings__.getAddonInfo('path')).decode("utf-8")
+
 
 artwork_temp = os.path.join(__profile__, 'art_temp')
 sub_temp = os.path.join(__profile__, 'sub_temp')
@@ -57,6 +59,7 @@ username, password = __settings__.getSetting('vrv_username'), \
                      __settings__.getSetting('vrv_password')
 adaptive = (__settings__.getSetting('adaptive_mode') == 'true')
 set_res = int(__settings__.getSetting('resolution'))
+do_cache = (__settings__.getSetting('do_cache') == 'true')
 
 font_name = __settings__.getSetting('font_name')
 font_size = __settings__.getSetting('font_size')
@@ -109,17 +112,18 @@ def get_parent_info(item):
 
 
 def cache_art(art_dict):
-    for atype, url in art_dict.items():
-        filename = os.path.join(artwork_temp, atype + '_' + '_'.join(url.split('/')[-2:]))
-        if not os.path.exists(filename):
-            image_res = session.session.get(url)
-            if image_res.status_code == 200:
-                image_file = open(filename, 'wb')
-                image_file.write(image_res.content)
-                image_file.close()
+    if do_cache:
+        for atype, url in art_dict.items():
+            filename = os.path.join(artwork_temp, atype + '_' + '_'.join(url.split('/')[-2:]))
+            if not os.path.exists(filename):
+                image_res = session.session.get(url)
+                if image_res.status_code == 200:
+                    image_file = open(filename, 'wb')
+                    image_file.write(image_res.content)
+                    image_file.close()
+                    art_dict[atype] = filename
+            else:
                 art_dict[atype] = filename
-        else:
-            art_dict[atype] = filename
     return art_dict
 
 def get_sub(sub_url):
@@ -523,15 +527,27 @@ def series(nid):
     else:
         series_info = dict()
 
-    for i in seasons.items:
-        li = ListItem(i.title)
-        art_cache = get_parent_art(i)
-        li.setArt(art_cache)
-        li.setInfo('video', series_info)
-        # li.setInfo('video', {'title': i.title,
-        #                     'label2': i.season_number})
-        xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(season, i.id), li, True)
-    xbmcplugin.endOfDirectory(plugin.handle)
+    if len(seasons.items) == 1:
+        my_log('series only has one season, skipping to episodes section', xbmc.LOGDEBUG)
+        season(seasons.items[0].id)
+    else:
+        my_log('series has more than one, displaying context menu', xbmc.LOGDEBUG)
+        dummy_dialog = Dialog()
+        season_names = []
+        for item in seasons.items:
+            season_names.append(item.title)
+        choice = dummy_dialog.contextmenu(season_names)
+        if choice > -1:
+            season(seasons.items[choice].id)
+    # for i in seasons.items:
+    #     li = ListItem(i.title)
+    #     art_cache = get_parent_art(i)
+    #     li.setArt(art_cache)
+    #     li.setInfo('video', series_info)
+    #     # li.setInfo('video', {'title': i.title,
+    #     #                     'label2': i.season_number})
+    #     xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(season, i.id), li, True)
+    # xbmcplugin.endOfDirectory(plugin.handle)
 
 
 @plugin.route('/feed/<fid>')
@@ -563,7 +579,7 @@ def season(nid):
         if not i.streams:
             if i.available_date:
                 a_date = time.strptime(i.available_date,'%Y-%m-%dT%H:%M:%SZ')
-                title="{} [TBA on {}]".format(title,a_date.strftime("%m/%d/%y %I:%M:%S %P"))
+                title = "{} [TBA on {}]".format(title, time.strftime("%m/%d/%y %I:%M:%S %P", a_date))
             else:
                 title = "{} [NOT AVAILABLE]".format(title)
         li = ListItem(title)
@@ -584,7 +600,8 @@ def episode(eid):
     episode = session.get_cms(cms_url + 'episodes/' + eid)
     if episode.available_date:
         try:
-            a_date = datetime.strptime(episode.available_date, '%Y-%m-%dT%H:%M:%SZ')
+            #title = "{} [TBA on {}]".format(title, time.strftime("%m/%d/%y %I:%M:%S %P", a_date))
+            a_date = time.strptime(episode.available_date, '%Y-%m-%dT%H:%M:%SZ')
             #for some odd reason, the statement comes back with 'NoneType' callable
             #exception on datetime, I believe. handling this so it doesn't throw
             #'spurious' exceptions
@@ -598,7 +615,7 @@ def episode(eid):
         dialog = Dialog()
         dialog.notification("VRV", "No streams available.", time=1000, sound=False)
         if a_date:
-            dialog.notification("VRV","TBA on {}".format(a_date), time=1000,sound=False)
+            dialog.notification("VRV","TBA on {}".format(time.strftime("%m/%d/%y %I:%M:%S %P", a_date)), time=1000,sound=False)
 
 if __name__ == '__main__':
     plugin.run()

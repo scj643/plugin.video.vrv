@@ -3,6 +3,7 @@
     <category label="30501">
         <setting id="vrv_username" type="text" label="30001" default=""/>
         <setting id="vrv_password" type="text" label="30002" option="hidden" default=""/>
+        <setting id="do_cache" type="bool" label="30010" default="false"/>
     </category>
     <category label="30502">
         <setting id="oauth_key" type="text" label="30003" option="hidden" default="RHUPiy8MFEj6z0tIu46cU2bAQu9DVRQWZ87838TEhsN1JpevcqtzL1J9rF3f"/>
