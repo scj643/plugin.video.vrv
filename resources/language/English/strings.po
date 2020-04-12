@@ -53,6 +53,42 @@ msgctxt "#30010"
 msgid "Cache art locally on hard drive"
 msgstr ""
 
+msgctxt "#30011"
+msgid "Strip dialogue"
+msgstr ""
+
+msgctxt "#30012"
+msgid "Offset sub (- means add seconds)"
+msgstr ""
+
+msgctxt "#30013"
+msgid "Subtitle 'borrowing'"
+msgstr ""
+
+msgctxt "#30014"
+msgid "Hidive does not like to include subtitles with their dubs."
+msgstr ""
+
+msgctxt "#30015"
+msgid "These options allow the addon to grab the subtitle data"
+msgstr ""
+
+msgctxt "#30016"
+msgid "from the subbed version of the show, provided it's available."
+msgstr ""
+
+msgctxt "#30017"
+msgid "If the dub version does have sub info, this will not override it."
+msgstr ""
+
+msgctxt "#30018"
+msgid "Just to compensate for the 'Dubcast' intro title card (usually 4s)."
+msgstr ""
+
+msgctxt "#30019"
+msgid "This option only works if the subs are properly tagged (if they are multicolor)."
+msgstr ""
+
 msgctxt "#30501"
 msgid "General"
 msgstr ""

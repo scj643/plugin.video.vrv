@@ -27,7 +27,7 @@ plugin = routing.Plugin()
 _plugId = "plugin.video.vrv"
 
 __plugin__ = "VRV"
-__version__ = "0.2.4"
+__version__ = "0.2.5"
 __settings__ = xbmcaddon.Addon(id=_plugId)
 __profile__ = xbmc.translatePath(__settings__.getAddonInfo('profile')).decode("utf-8")
 
@@ -61,8 +61,12 @@ adaptive = (__settings__.getSetting('adaptive_mode') == 'true')
 set_res = int(__settings__.getSetting('resolution'))
 do_cache = (__settings__.getSetting('do_cache') == 'true')
 
-font_name = __settings__.getSetting('font_name')
-font_size = __settings__.getSetting('font_size')
+vtt_font_name = __settings__.getSetting('font_name')
+vtt_font_size = __settings__.getSetting('font_size')
+vtt_borrow_subs = (__settings__.getSetting('borrow_subs') == 'true')
+vtt_strip_dialogue = (__settings__.getSetting('strip_dialogue') == 'true')
+vtt_sub_offset = int(__settings__.getSetting('sub_offset'))
+
 
 if not (username and password):
     dialog = Dialog()
@@ -126,7 +130,7 @@ def cache_art(art_dict):
                 art_dict[atype] = filename
     return art_dict
 
-def get_sub(sub_url):
+def get_sub(sub_url, borrowed_subs=False):
     filename = os.path.join(sub_temp, sub_url.split('/')[-1].split('?')[0])
     sub_res = session.session.get(sub_url)
     if sub_res.status_code == 200:
@@ -134,7 +138,14 @@ def get_sub(sub_url):
         image_file.write(sub_res.content)
         image_file.close()
         if '.vtt' in filename:
-            filename = convert_subs(filename, font=font_name, size=font_size)
+            if borrowed_subs:
+                strip_dialogue = vtt_strip_dialogue
+                sub_offset = int(vtt_sub_offset)
+            else:
+                strip_dialogue = False
+                sub_offset = 0
+            filename = convert_subs(filename, font=vtt_font_name, size=vtt_font_size,
+                                    strip_dialogue= strip_dialogue, sub_offset=sub_offset)
     else:
         filename = sub_url
     return filename
@@ -164,6 +175,22 @@ def setup_player(playable_obj):
         li = ListItem(playable_obj.title)
         if playable_obj.media_type == "episode":
             li.setLabel2(str(playable_obj.episode_number))
+            if not stream.en_subtitle and vtt_borrow_subs:
+                my_log("Stream doesn't have subtitles! Trying to borrow from subbed season.", xbmc.LOGINFO)
+                series_id = playable_obj.series_id
+                ep_number = playable_obj.episode_number
+                seasons = session.get_cms(cms_url + 'seasons?series_id=' + series_id)
+                for season in seasons.items:
+                    if season.subbed and not season.dubbed:
+                        sub_eps = session.get_cms(cms_url + 'episodes?season_id=' + season.id)
+                        sub_ep = session.get_cms(cms_url + 'episodes/' + sub_eps.items[int(ep_number)-1].id)
+                        if sub_ep.streams:
+                            sub_str = session.get_cms(sub_ep.streams)
+                            if sub_str.en_subtitle:
+                                li.setSubtitles([get_sub(sub_str.en_subtitle.url,borrowed_subs=True)])
+
+
+
         if playable_obj.images:
             art_cache = cache_art(playable_obj.images.kodi_setart_dict())
             li.setArt(art_cache)
