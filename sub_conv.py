@@ -1,5 +1,6 @@
 from pyvtt import WebVTTFile
 from pyvtt.vttexc import InvalidFile
+from datetime import time, datetime, date, timedelta
 
 import xbmc
 
@@ -11,7 +12,7 @@ def my_log(message, level):
 
 
 #TODO: Add runtime customizable subtitle options
-def convert_subs(vtt_filename, font="", size=""):
+def convert_subs(vtt_filename, font="", size="", strip_dialogue=False, sub_offset=0):
     output_filename = vtt_filename
     try:
         subs = WebVTTFile.open(vtt_filename)
@@ -137,16 +138,27 @@ def convert_subs(vtt_filename, font="", size=""):
                     abs_hpos = int(abs_hpos)
             item_text = item.text_without_tags.encode('utf-8')
             #handle the timecodes, need to chop off leading 0 and trailing ms position
-            if '.' in item.start.to_time().isoformat():
+            start_time = item.start.to_time()
+            end_time = item.end.to_time()
+            #because timedelta objects *only* work with datetime objects,
+            #cast the time objects into datetime, using today's date as a placeholder
+            start_date = datetime.combine(date=date.today(),time=start_time)
+            end_date = datetime.combine(date=date.today(),time=end_time)
+            start_date = start_date - timedelta(seconds=sub_offset)
+            end_date = end_date - timedelta(seconds=sub_offset)
+            start_time = start_date.time()
+            end_time = end_date.time()
+
+            if '.' in start_time.isoformat():
                 #isoformat doesn't print trailing zeros in ms position,
                 #so we need to account for this. in this case we have ms's
-                start_text = item.start.to_time().isoformat()[1:-4]
+                start_text = start_time.isoformat()[1:-4]
             else: # we add trailing zero's back
-                start_text = item.start.to_time().isoformat()[1:] + '.00'
-            if '.' in item.end.to_time().isoformat():
-                end_text = item.end.to_time().isoformat()[1:-4]
+                start_text = start_time.isoformat()[1:] + '.00'
+            if '.' in end_time.isoformat():
+                end_text = end_time.isoformat()[1:-4]
             else:
-                end_text = item.end.to_time().isoformat()[1:] + '.00'
+                end_text = end_time.isoformat()[1:] + '.00'
 
             #create the events, matching the styles to what we used before
             if "caption" in item.text or "Caption" in item.text:
@@ -188,7 +200,7 @@ def convert_subs(vtt_filename, font="", size=""):
                     'Effect': "",
                     'Text': item_text
                 }
-
-            ass_fh.write(event_template.format(**event))
+            if (event['Style'] == "dialogue" and not strip_dialogue) or event['Style'] != "dialogue":
+                ass_fh.write(event_template.format(**event))
         ass_fh.close()
     return output_filename

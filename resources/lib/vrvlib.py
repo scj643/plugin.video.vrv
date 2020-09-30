@@ -430,7 +430,9 @@ class Panel(VRVResponse):
             self.season_count = 0
             self.episode_count = 0
 
-        if self.series_metadata.get('is_subbed'):
+        if self.series_metadata.get('is_subbed') and self.series_metadata.get('is_dubbed'):
+            self.lang = '(subbed & dubbed)'
+        elif self.series_metadata.get('is_subbed'):
             self.lang = '(subbed)'
         elif self.series_metadata.get('is_dubbed'):
             self.lang = '(dubbed)'

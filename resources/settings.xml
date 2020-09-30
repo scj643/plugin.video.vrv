@@ -3,6 +3,7 @@
     <category label="30501">
         <setting id="vrv_username" type="text" label="30001" default=""/>
         <setting id="vrv_password" type="text" label="30002" option="hidden" default=""/>
+        <setting id="do_cache" type="bool" label="30010" default="false"/>
     </category>
     <category label="30502">
         <setting id="oauth_key" type="text" label="30003" option="hidden" default="RHUPiy8MFEj6z0tIu46cU2bAQu9DVRQWZ87838TEhsN1JpevcqtzL1J9rF3f"/>
@@ -16,5 +17,14 @@
         <setting label="30007" type="lsep"/>
         <setting id="font_name" type="text" label="30008" default="Arial"/>
         <setting id="font_size" type="select" label="30009" values="34|32|28|26|24|22" default="24"/>
+        <setting label="30014" type="lsep"/>
+        <setting label="30015" type="lsep"/>
+        <setting label="30016" type="lsep"/>
+        <setting label="30017" type="lsep"/>
+        <setting id="borrow_subs" type="bool" label="30013" default="true"/>
+        <setting label="30019" type="lsep"/>
+        <setting id="strip_dialogue" type="bool" label="30011" default="true"/>
+        <setting label="30018" type="lsep"/>
+        <setting id="sub_offset" type="text" label="30012" default="-4"/>
     </category>
 </settings>
