@@ -20,7 +20,7 @@
         <forum></forum>
         <website></website>
         <email></email>
-        <source></source>
+        <source>https://github.com/scj643/plugin.video.vrv</source>
         <news></news>
         <assets>
             <icon>resources/icon.png</icon>
