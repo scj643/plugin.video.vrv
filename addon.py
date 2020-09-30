@@ -14,11 +14,10 @@ import xbmcaddon
 import xbmcplugin
 import xbmcgui
 
-from datetime import datetime
 from resources.lib.vrvlib import VRV
 from xbmcgui import ListItem, Dialog
 from string import capwords
-from urllib import quote_plus, urlencode
+from urllib.parse import quote_plus, urlencode
 
 from sub_conv import convert_subs
 
@@ -29,10 +28,9 @@ _plugId = "plugin.video.vrv"
 __plugin__ = "VRV"
 __version__ = "0.2.5"
 __settings__ = xbmcaddon.Addon(id=_plugId)
-__profile__ = xbmc.translatePath(__settings__.getAddonInfo('profile')).decode("utf-8")
+__profile__ = xbmc.translatePath(__settings__.getAddonInfo('profile'))
 
-__addon_path__ = xbmc.translatePath(__settings__.getAddonInfo('path')).decode("utf-8")
-
+__addon_path__ = xbmc.translatePath(__settings__.getAddonInfo('path'))
 
 artwork_temp = os.path.join(__profile__, 'art_temp')
 sub_temp = os.path.join(__profile__, 'sub_temp')
@@ -67,10 +65,10 @@ vtt_borrow_subs = (__settings__.getSetting('borrow_subs') == 'true')
 vtt_strip_dialogue = (__settings__.getSetting('strip_dialogue') == 'true')
 vtt_sub_offset = int(__settings__.getSetting('sub_offset'))
 
-
 if not (username and password):
     dialog = Dialog()
-    dialog.notification("VRV", "Username(email) and password not set. Check login under settings.", time=1000, sound=False)
+    dialog.notification("VRV", "Username(email) and password not set. Check login under settings.", time=1000,
+                        sound=False)
 
 session = VRV(__settings__.getSetting('vrv_username'),
               __settings__.getSetting('vrv_password'),
@@ -81,10 +79,8 @@ if not session.logged_in:
     dialog = Dialog()
     dialog.notification("VRV", "Login failed. Check login under settings.", time=1000, sound=False)
 
-
 if session and session.logged_in:
     cms_url = session.index.links['cms_index.v2'].rstrip('index')
-
 
 
 def format_time(seconds):
@@ -117,18 +113,19 @@ def get_parent_info(item):
 
 def cache_art(art_dict):
     if do_cache:
-        for atype, url in art_dict.items():
-            filename = os.path.join(artwork_temp, atype + '_' + '_'.join(url.split('/')[-2:]))
+        for art_type, url in list(art_dict.items()):
+            filename = os.path.join(artwork_temp, art_type + '_' + '_'.join(url.split('/')[-2:]))
             if not os.path.exists(filename):
                 image_res = session.session.get(url)
                 if image_res.status_code == 200:
                     image_file = open(filename, 'wb')
                     image_file.write(image_res.content)
                     image_file.close()
-                    art_dict[atype] = filename
+                    art_dict[art_type] = filename
             else:
-                art_dict[atype] = filename
+                art_dict[art_type] = filename
     return art_dict
+
 
 def get_sub(sub_url, borrowed_subs=False):
     filename = os.path.join(sub_temp, sub_url.split('/')[-1].split('?')[0])
@@ -145,7 +142,7 @@ def get_sub(sub_url, borrowed_subs=False):
                 strip_dialogue = False
                 sub_offset = 0
             filename = convert_subs(filename, font=vtt_font_name, size=vtt_font_size,
-                                    strip_dialogue= strip_dialogue, sub_offset=sub_offset)
+                                    strip_dialogue=strip_dialogue, sub_offset=sub_offset)
     else:
         filename = sub_url
     return filename
@@ -155,23 +152,23 @@ def setup_player(playable_obj):
     timeout = 30
     failure = False
     if hasattr(playable_obj, 'streams') and hasattr(playable_obj, 'get_play_head'):
-        dialog = Dialog()
+        resume_dialog = Dialog()
         stream = session.get_cms(playable_obj.streams)
-        playhead = playable_obj.get_play_head(session)
+        play_head = playable_obj.get_play_head(session)
 
-        if playhead and not playhead.completion_status:
-            timestamp = format_time(playhead.position)
-            res = dialog.yesno('Resume Playback',
-                               'Do you want to resume playback at {}?'.format(timestamp))
+        if play_head and not play_head.completion_status:
+            timestamp = format_time(play_head.position)
+            res = resume_dialog.yesno('Resume Playback',
+                                      'Do you want to resume playback at {}?'.format(timestamp))
             if res:
-                last_pos = playhead.position
+                last_pos = play_head.position
             else:
                 last_pos = -1
         else:
             last_pos = -1
         if not adaptive:
             # notify the user because the adaptive stream workaround takes a few seconds
-            dialog.notification("VRV", "Starting stream...", time=1000, sound=False)
+            resume_dialog.notification("VRV", "Starting stream...", time=1000, sound=False)
         li = ListItem(playable_obj.title)
         if playable_obj.media_type == "episode":
             li.setLabel2(str(playable_obj.episode_number))
@@ -180,16 +177,14 @@ def setup_player(playable_obj):
                 series_id = playable_obj.series_id
                 ep_number = playable_obj.episode_number
                 seasons = session.get_cms(cms_url + 'seasons?series_id=' + series_id)
-                for season in seasons.items:
-                    if season.subbed and not season.dubbed:
-                        sub_eps = session.get_cms(cms_url + 'episodes?season_id=' + season.id)
-                        sub_ep = session.get_cms(cms_url + 'episodes/' + sub_eps.items[int(ep_number)-1].id)
+                for season_item in seasons.items:
+                    if season_item.subbed and not season_item.dubbed:
+                        sub_eps = session.get_cms(cms_url + 'episodes?season_id=' + season_item.id)
+                        sub_ep = session.get_cms(cms_url + 'episodes/' + sub_eps.items[int(ep_number) - 1].id)
                         if sub_ep.streams:
                             sub_str = session.get_cms(sub_ep.streams)
                             if sub_str.en_subtitle:
-                                li.setSubtitles([get_sub(sub_str.en_subtitle.url,borrowed_subs=True)])
-
-
+                                li.setSubtitles([get_sub(sub_str.en_subtitle.url, borrowed_subs=True)])
 
         if playable_obj.images:
             art_cache = cache_art(playable_obj.images.kodi_setart_dict())
@@ -198,7 +193,7 @@ def setup_player(playable_obj):
             parent_ac = get_parent_art(playable_obj)
         except:
             parent_ac = None
-        
+
         if parent_ac:
             li.setArt({'fanart': parent_ac.get('fanart')})
         li.setInfo('video', playable_obj.kodi_info())
@@ -210,7 +205,7 @@ def setup_player(playable_obj):
 
         player = xbmc.Player()
 
-        my_log("Setting up player object. PlayHead position is %s." % (last_pos), xbmc.LOGDEBUG)
+        my_log("Setting up player object. PlayHead position is %s." % last_pos, xbmc.LOGDEBUG)
         if stream.en_subtitle:
             li.setSubtitles([get_sub(stream.en_subtitle.url)])
 
@@ -223,8 +218,9 @@ def setup_player(playable_obj):
             xbmc.sleep(1000)
             loops += 1
             if loops > timeout:
-                dialog.notification("VRV", "Failed to play stream. Check config?", icon=xbmcgui.NOTIFICATION_ERROR,
-                                    time=5000)
+                resume_dialog.notification("VRV", "Failed to play stream. Check config?",
+                                           icon=xbmcgui.NOTIFICATION_ERROR,
+                                           time=5000)
                 failure = True
                 break
         current_pos = 0
@@ -236,7 +232,7 @@ def setup_player(playable_obj):
                 TODO: this seems to break sync with subtitles.
             """
             if not tried_seek and last_pos > 0:
-                my_log("Trying to get Kodi to seek to %s." % (last_pos), xbmc.LOGDEBUG)
+                my_log("Trying to get Kodi to seek to %s." % last_pos, xbmc.LOGDEBUG)
                 player.seekTime(float(last_pos))
                 xbmc.sleep(1000)  # wait for kodi to response
                 current_pos = int(player.getTime())
@@ -265,7 +261,7 @@ def prepstream(stream_url):
         max_res_pl = None
         for playlist in pl_parse.playlists:
             res = playlist.stream_info.resolution
-            my_log("Stream is available in {}x{}.".format(res[0], res[1]), xbmc.LOGNOTICE)
+            my_log("Stream is available in {}x{}.".format(res[0], res[1]), xbmc.LOGINFO)
             if 0 < set_res == res[1]:
                 current_max_res = res[1]
                 req_res_pl = playlist
@@ -384,7 +380,7 @@ def search():
         if keyboard.isConfirmed():
             try:
                 result_size = int(keyboard.getText())
-            except:
+            except ValueError:
                 result_size = default_size
     if query:
         search_params = {'q': query, 'n': result_size, 'start': '.' + str(start)}
@@ -406,18 +402,18 @@ def search():
 def add_to_watchlist():
     ref_id = plugin.args.get('rid', [None])[0]
     if ref_id:
-        dialog = Dialog()
+        add_watchlist_dialog = Dialog()
         session.add_to_watchlist(ref_id)
-        dialog.notification("VRV", "Added to watchlist.", time=1000, sound=False)
+        add_watchlist_dialog.notification("VRV", "Added to watchlist.", time=1000, sound=False)
 
 
 @plugin.route('/delete_from_watchlist')
 def delete_from_watchlist():
     wl_id = plugin.args.get('wlid', [None])[0]
     if wl_id:
-        dialog = Dialog()
+        del_from_watchlist_dialog = Dialog()
         session.delete_from_watchlist(wl_id)
-        dialog.notification("VRV", "Removed from watchlist. Please refresh.", time=1000, sound=False)
+        del_from_watchlist_dialog.notification("VRV", "Removed from watchlist. Please refresh.", time=1000, sound=False)
 
 
 @plugin.route('/watchlist')
@@ -436,7 +432,7 @@ def watchlist():
             wl_id = delete_link.split('/')[-1]
             remove_url = plugin.url_for(delete_from_watchlist, wlid=wl_id)
             my_log("remove_url is {}".format(remove_url), xbmc.LOGDEBUG)
-            context_items = [(('Remove from watchlist', "XBMC.RunPlugin({})".format(remove_url)))]
+            context_items = [('Remove from watchlist', "XBMC.RunPlugin({})".format(remove_url))]
             li.addContextMenuItems(context_items)
         handle_panel(i.panel, li, set_menu=False)
     if wl.links.get('next'):
@@ -529,7 +525,7 @@ def movie_listing(nid):
             art_cache = cache_art(i.images.kodi_setart_dict())
             li.setArt(art_cache)
         parent_ac = get_parent_art(i)
-        
+
         li.setInfo('video', i.kodi_info())
         li.setArt({'fanart': parent_ac.get('fanart')})
         if stream.en_subtitle:
@@ -540,17 +536,17 @@ def movie_listing(nid):
 
 @plugin.route('/movie/<mid>')
 def movie(mid):
-    movie = session.get_cms(cms_url + 'movies/' + mid)
-    setup_player(movie)
+    cur_movie = session.get_cms(cms_url + 'movies/' + mid)
+    setup_player(cur_movie)
 
 
 @plugin.route('/series/<nid>')
 def series(nid):
     my_log('got to series ' + str(nid), xbmc.LOGDEBUG)
     seasons = session.get_cms(cms_url + 'seasons?series_id=' + nid)
-    series = session.get_cms(cms_url + 'series/' + nid)
-    if series:
-        series_info = series.kodi_info()
+    cur_series = session.get_cms(cms_url + 'series/' + nid)
+    if cur_series:
+        series_info = cur_series.kodi_info()
     else:
         series_info = dict()
 
@@ -579,33 +575,33 @@ def series(nid):
 
 @plugin.route('/feed/<fid>')
 def feed(fid):
-    feed = session.get_cms(cms_url + 'curated_feeds/' + fid + '?version=1.1')
+    cur_feed = session.get_cms(cms_url + 'curated_feeds/' + fid + '?version=1.1')
 
-    if feed.status_code == 200:
-        for item in feed.items:
+    if cur_feed.status_code == 200:
+        for item in cur_feed.items:
             li = ListItem(item.title)
             if item.rclass == 'panel':
                 handle_panel(item, li)
             elif item.rclass == 'curated_feed':
-                xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(feed, item.id), True)
+                xbmcplugin.addDirectoryItem(plugin.handle, plugin.url_for(cur_feed, item.id), True)
         xbmcplugin.endOfDirectory(plugin.handle)
 
 
 @plugin.route('/season/<nid>')
 def season(nid):
-    my_log("Adaptive Mode: " + str(adaptive), xbmc.LOGNOTICE)
+    my_log("Adaptive Mode: " + str(adaptive), xbmc.LOGINFO)
     eps = session.get_cms(cms_url + 'episodes?season_id=' + nid)
     for i in eps.items:
         iph = i.get_play_head(session)
         title = i.title
         if iph:
             if iph.completion_status:
-                title = u"{} [Status: Completed]".format(i.title)
+                title = "{} [Status: Completed]".format(i.title)
             else:
-                title = u"{} [Status: In Progress: {}]".format(i.title, format_time(iph.position))
+                title = "{} [Status: In Progress: {}]".format(i.title, format_time(iph.position))
         if not i.streams:
             if i.available_date:
-                a_date = time.strptime(i.available_date,'%Y-%m-%dT%H:%M:%SZ')
+                a_date = time.strptime(i.available_date, '%Y-%m-%dT%H:%M:%SZ')
                 title = "{} [TBA on {}]".format(title, time.strftime("%m/%d/%y %I:%M:%S %P", a_date))
             else:
                 title = "{} [NOT AVAILABLE]".format(title)
@@ -623,26 +619,27 @@ def season(nid):
 
 @plugin.route('/episode/<eid>')
 def episode(eid):
-
-    episode = session.get_cms(cms_url + 'episodes/' + eid)
-    if episode.available_date:
+    cur_episode = session.get_cms(cms_url + 'episodes/' + eid)
+    if cur_episode.available_date:
         try:
-            #title = "{} [TBA on {}]".format(title, time.strftime("%m/%d/%y %I:%M:%S %P", a_date))
-            a_date = time.strptime(episode.available_date, '%Y-%m-%dT%H:%M:%SZ')
-            #for some odd reason, the statement comes back with 'NoneType' callable
-            #exception on datetime, I believe. handling this so it doesn't throw
-            #'spurious' exceptions
+            # title = "{} [TBA on {}]".format(title, time.strftime("%m/%d/%y %I:%M:%S %P", a_date))
+            a_date = time.strptime(cur_episode.available_date, '%Y-%m-%dT%H:%M:%SZ')
+            # for some odd reason, the statement comes back with 'NoneType' callable
+            # exception on datetime, I believe. handling this so it doesn't throw
+            # 'spurious' exceptions
         except:
             a_date = ""
     else:
         a_date = ""
-    if episode.streams:
-        setup_player(episode)
+    if cur_episode.streams:
+        setup_player(cur_episode)
     else:
-        dialog = Dialog()
-        dialog.notification("VRV", "No streams available.", time=1000, sound=False)
+        cur_dialog = Dialog()
+        cur_dialog.notification("VRV", "No streams available.", time=1000, sound=False)
         if a_date:
-            dialog.notification("VRV","TBA on {}".format(time.strftime("%m/%d/%y %I:%M:%S %P", a_date)), time=1000,sound=False)
+            cur_dialog.notification("VRV", "TBA on {}".format(time.strftime("%m/%d/%y %I:%M:%S %P", a_date)), time=1000,
+                                    sound=False)
+
 
 if __name__ == '__main__':
     plugin.run()

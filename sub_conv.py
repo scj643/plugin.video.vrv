@@ -90,9 +90,9 @@ def convert_subs(vtt_filename, font="", size="", strip_dialogue=False, sub_offse
     if subs:
         ass_fh = open(output_filename, 'wb')
         #write out the header and the dialogue style
-        ass_fh.write(ass_header)
-        ass_fh.write(line_template.format(**styles['dialogue']))
-        ass_fh.write(line_template.format(**styles['song_lyrics']))
+        ass_fh.write(bytes(ass_header, 'utf-8'))
+        ass_fh.write(bytes(line_template.format(**styles['dialogue']), 'utf-8'))
+        ass_fh.write(bytes(line_template.format(**styles['song_lyrics']), 'utf-8'))
         #find the 'special' sub blocks that specify an alignment
         for item in subs.data:
             if "align" in item.position or "Caption" in item.text or "caption" in item.text:
@@ -102,18 +102,18 @@ def convert_subs(vtt_filename, font="", size="", strip_dialogue=False, sub_offse
                     #it's probably not neccessary to do the .replace here
                     styles['captions']['Name'] = item.index.replace('-', '_')
                     styles['captions']['Alignment'] = "1"
-                    ass_fh.write(line_template.format(**styles['captions']))
+                    ass_fh.write(bytes(line_template.format(**styles['captions']), 'utf-8'))
                 elif "align:right" in item.position:
                     styles['captions']['Name'] = item.index.replace('-', '_')
                     styles['captions']['Alignment'] = "3"
-                    ass_fh.write(line_template.format(**styles['captions']))
+                    ass_fh.write(bytes(line_template.format(**styles['captions']), 'utf-8'))
                 else:
                     styles['captions']['Name'] = item.index.replace('-', '_')
                     styles['captions']['Alignment'] = "2"
-                    ass_fh.write(line_template.format(**styles['captions']))
-
-        ass_fh.write("\n\n")
-        ass_fh.write(event_header)
+                    ass_fh.write(bytes(line_template.format(**styles['captions']), 'utf-8'))
+        
+        ass_fh.write(b"\n\n")
+        ass_fh.write(bytes(event_header, 'utf-8'))
         #write out the subtitles: ASS calls these events, VTT has these stored in <c> tags
         for item in subs.data:
             abs_vpos = 10 # don't want the 'default' margin to have the subtitles at
@@ -137,6 +137,7 @@ def convert_subs(vtt_filename, font="", size="", strip_dialogue=False, sub_offse
                     abs_hpos = abs_hpos + offset[0]
                     abs_hpos = int(abs_hpos)
             item_text = item.text_without_tags.encode('utf-8')
+            item_text = item_text.decode('utf-8')
             #handle the timecodes, need to chop off leading 0 and trailing ms position
             start_time = item.start.to_time()
             end_time = item.end.to_time()
@@ -201,6 +202,7 @@ def convert_subs(vtt_filename, font="", size="", strip_dialogue=False, sub_offse
                     'Text': item_text
                 }
             if (event['Style'] == "dialogue" and not strip_dialogue) or event['Style'] != "dialogue":
-                ass_fh.write(event_template.format(**event))
+                ass_fh.write(bytes(event_template.format(**event), 'utf-8'))
         ass_fh.close()
     return output_filename
+

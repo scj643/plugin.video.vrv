@@ -1,5 +1,4 @@
 import xbmc
-import vrvlib
 
 
 class VRVPlayer(xbmc.Player):
@@ -23,7 +22,7 @@ class VRVPlayer(xbmc.Player):
         pass
 
     def onPlayBackPaused(self):
-        print("Strted")
+        pass
 
     def onPlayBackResumed(self):
-        print("Strted")
+        pass

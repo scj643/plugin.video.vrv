@@ -2,13 +2,10 @@
 vrvlib.py
 Created by scj643 on 10/19/2017
 """
-from urllib import urlencode, quote
+from urllib.parse import quote
 
 from requests_oauthlib import OAuth1Session
-from datetime import datetime
-import _strptime
 import time
-
 
 HEADERS = {
     'User-Agent': 'VRV/968 (iPad; iOS 10.2; Scale/2.00)',
@@ -28,7 +25,7 @@ def process_links(json_in):
     """
     json_out = {}
     if type(json_in) == dict:
-        for i in json_in.keys():
+        for i in list(json_in.keys()):
             json_out[i] = json_in[i]['href']
         return json_out
     else:
@@ -70,35 +67,37 @@ class VRV(object):
             self.logged_in = True
         except:
             self.logged_in = False
-        
+
     def get_cms(self, path, match_type=True):
         """
         :param path:
         :param match_type: use vrv_json_hook after retrieval
         :return: a request that has the CMS args attached
         """
-        #print("path is",path)
-        #print("avail policies:",self.index.signing_policies.keys())
-        #print("index is",self.index.response)
+        # print("path is",path)
+        # print("avail policies:",self.index.signing_policies.keys())
+        # print("index is",self.index.response)
         active_policy = None
         for sign_path in self.index.signing_policies:
             if sign_path in path:
                 active_policy = self.index.signing_policies[sign_path]
         if active_policy:
             pass
-            #print(active_policy)
+            # print(active_policy)
         else:
             for sign_path in self.index.signing_policies:
-                 if 'disc/private' in sign_path:
-                     active_policy = self.index.signing_policies[sign_path]
-            #print("Couldn't get active policy, defaulting to disc/private")
+                if 'disc/private' in sign_path:
+                    active_policy = self.index.signing_policies[sign_path]
+            # print("Couldn't get active policy, defaulting to disc/private")
         expires_str = active_policy['expires'].split('+')[0]
-        expires_dt = time.strptime(expires_str,'%Y-%m-%dT%H:%M:%S')
+        expires_dt = time.strptime(expires_str, '%Y-%m-%dT%H:%M:%S')
         expires_ts = int(time.mktime(expires_dt))
         policy = active_policy['Policy']
         signature = active_policy['Signature']
         kp_id = active_policy['Key-Pair-Id']
-        new_params = "Policy={}&Signature={}&Key-Pair-Id={}&Expires={}&endpoint_expires={}".format(policy,signature,kp_id,expires_ts,expires_ts)
+        new_params = "Policy={}&Signature={}&Key-Pair-Id={}&Expires={}&endpoint_expires={}".format(policy, signature,
+                                                                                                   kp_id, expires_ts,
+                                                                                                   expires_ts)
 
         if '?' not in path:
             path += '?' + new_params
@@ -153,13 +152,13 @@ class VRVResponse(object):
         self.actions = process_links(response.get('__actions__'))
         self.rclass = response.get('__class__')
         self.status_code = 200
-        if 'images' in response.keys() and response.get('images'):
+        if 'images' in list(response.keys()) and response.get('images'):
             self.images = Images(response.get('images'))
         else:
             self.images = None
 
     def __repr__(self):
-        return u'<VRVResponse: {}>'.format(self.rclass)
+        return '<VRVResponse: {}>'.format(self.rclass)
 
 
 class Collection(VRVResponse):
@@ -191,7 +190,7 @@ class Season(VRVResponse):
         self.id = response.get('id')
         self.channel = response.get('channel_id')
         self.is_complete = response.get('is_complete')
-        self.description = response.get('description').encode('utf-8')
+        self.description = response.get('description')
         self.is_mature = response.get('is_mature')
         self.subbed = response.get('is_subbed')
         self.dubbed = response.get('is_dubbed')
@@ -213,7 +212,7 @@ class Season(VRVResponse):
         }
 
     def __repr__(self):
-        return u'<Season: {}>'.format(self.title)
+        return '<Season: {}>'.format(self.title)
 
 
 class MovieListing(VRVResponse):
@@ -221,7 +220,7 @@ class MovieListing(VRVResponse):
         super(MovieListing, self).__init__(response)
         self.id = response.get('id')
         self.channel = response.get('channel_id')
-        self.description = response.get('description').encode('utf-8')
+        self.description = response.get('description')
         self.is_mature = response.get('is_mature')
         self.subbed = response.get('is_subbed')
         self.dubbed = response.get('is_dubbed')
@@ -229,7 +228,7 @@ class MovieListing(VRVResponse):
         self.movies_path = self.links.get('movie_listing/movies')
 
     def __repr__(self):
-        return u'<MovieListing: {}>'.format(self.title)
+        return '<MovieListing: {}>'.format(self.title)
 
     def kodi_info(self):
         """
@@ -248,7 +247,7 @@ class Episode(VRVResponse):
         super(Episode, self).__init__(response)
         self.title = response.get('title')
         self.media_type = response.get('media_type')
-        self.description = response.get('description').encode('utf-8')
+        self.description = response.get('description')
         self.duration_ms = response.get('duration_ms')
         self.episode_air_date = response.get('episode_air_date')
         self.subbed = response.get('is_subbed')
@@ -261,7 +260,7 @@ class Episode(VRVResponse):
         self.id = response.get('id')
         self.series_id = response.get('series_id')
         self.available_date = response.get('available_date')
-        if 'next_episode_id' in response.keys():
+        if 'next_episode_id' in list(response.keys()):
             self.next_episode_id = response.get('next_episode_id')
         else:
             self.next_episode_id = None
@@ -303,7 +302,7 @@ class Episode(VRVResponse):
             return None
 
     def __repr__(self):
-        return u'<Episode: {}: {}>'.format(self.title, self.series_title)
+        return '<Episode: {}: {}>'.format(self.title, self.series_title)
 
 
 class Movie(VRVResponse):
@@ -311,13 +310,13 @@ class Movie(VRVResponse):
         super(Movie, self).__init__(response)
         self.title = response.get('title')
         self.media_type = response.get('media_type')
-        self.description = response.get('description').encode('utf-8')
+        self.description = response.get('description')
         self.duration_ms = response.get('duration_ms')
         self.is_mature = response.get('is_mature')
         self.streams = self.links.get('streams')
         self.id = response.get('id')
         self.listing_id = response.get('listing_id')
-        if 'next_episode_id' in response.keys():
+        if 'next_episode_id' in list(response.keys()):
             self.next_episode_id = response.get('next_episode_id')
         else:
             self.next_episode_id = None
@@ -354,7 +353,7 @@ class Movie(VRVResponse):
             return None
 
     def __repr__(self):
-        return u'<Movie: {}>'.format(self.title)
+        return '<Movie: {}>'.format(self.title)
 
 
 class VideoStreams(VRVResponse):
@@ -376,7 +375,7 @@ class Index(VRVResponse):
         super(Index, self).__init__(response)
         self.cms_signing = response.get('cms_signing')
         self.signing_policies = self.parse_policy(response.get('signing_policies'))
-    
+
     @staticmethod
     def parse_policy(policy_list):
         sign_dict = dict()
@@ -384,7 +383,7 @@ class Index(VRVResponse):
             for subd in policy_list:
                 path = subd.get('path')
                 if 'v*' in path:
-                    path = path.replace('v*','v2')
+                    path = path.replace('v*', 'v2')
 
                 if path in sign_dict:
                     sign_dict[path][subd['name']] = subd['value']
@@ -407,14 +406,14 @@ class WatchlistItem(VRVResponse):
         self.panel = Panel(response.get('panel'))
 
     def __repr__(self):
-        return u'<WatchlistItem: {}>'.format(self.panel.title)
+        return '<WatchlistItem: {}>'.format(self.panel.title)
 
 
 class Panel(VRVResponse):
     def __init__(self, response):
         super(Panel, self).__init__(response)
         self.title = response.get('title')
-        self.description = response.get('description').encode('utf-8')
+        self.description = response.get('description')
         self.resource = self.links.get('resource')
         self.id = response.get('id')
         self.channel_id = response.get('channel_id')
@@ -460,19 +459,19 @@ class Panel(VRVResponse):
         return info
 
     def __repr__(self):
-        return u'<Panel: {}>'.format(self.title)
+        return '<Panel: {}>'.format(self.title)
 
 
 class Channel(VRVResponse):
     def __init__(self, response):
         super(Channel, self).__init__(response)
         self.name = response.get('name', response.get('id'))
-        self.description = response.get('description').encode('utf-8')
+        self.description = response.get('description')
         self.id = response.get('id')
         self.cms_id = response.get('cms_id')
 
     def __repr__(self):
-        return u'<Channel: {}>'.format(self.name)
+        return '<Channel: {}>'.format(self.name)
 
 
 class Series(VRVResponse):
@@ -485,7 +484,7 @@ class Series(VRVResponse):
         super(Series, self).__init__(response)
         self.title = response.get('title')
         self.episode_count = response.get('episode_count')
-        self.description = response.get('description').encode('utf-8')
+        self.description = response.get('description')
         self.keywords = response.get('keywords')
         self.season_count = response.get('season_count')
         self.seasons_href = self.links.get('series/seasons')
@@ -505,7 +504,7 @@ class Series(VRVResponse):
         }
 
     def __repr__(self):
-        return u'<Series: {}>'.format(self.title)
+        return '<Series: {}>'.format(self.title)
 
 
 class PlayHead(VRVResponse):
@@ -516,7 +515,7 @@ class PlayHead(VRVResponse):
         self.content_id = response.get('content_id')
 
     def __repr__(self):
-        return u'<PlayHead: {} at {}>'.format(self.content_id, self.position)
+        return '<PlayHead: {} at {}>'.format(self.content_id, self.position)
 
 
 class Subtitle(object):
@@ -532,7 +531,7 @@ class Images(object):
     """
 
     def __init__(self, response):
-        if 'poster_wide' in response.keys():
+        if 'poster_wide' in list(response.keys()):
             self.wide = [Poster(i) for i in response.get('poster_wide')[0]]
             self.largest_wide = self._largest(self.wide)
             self.medium_wide = self._middle(self.wide)
@@ -541,7 +540,7 @@ class Images(object):
             self.largest_wide = None
             self.medium_wide = None
 
-        if 'poster_tall' in response.keys():
+        if 'poster_tall' in list(response.keys()):
             self.tall = [Poster(i) for i in response.get('poster_tall')[0]]
             self.largest_tall = self._largest(self.tall)
             self.medium_tall = self._middle(self.tall)
@@ -550,7 +549,7 @@ class Images(object):
             self.largest_tall = None
             self.medium_tall = None
 
-        if 'thumbnail' in response.keys():
+        if 'thumbnail' in list(response.keys()):
             self.thumbnail = [Poster(i) for i in response.get('thumbnail')[0]]
             self.largest_thumbnail = self._largest(self.thumbnail)
             self.medium_thumbnail = self._middle(self.thumbnail)
@@ -615,7 +614,7 @@ class Poster(object):
         self.source = poster_data['source']
 
     def __repr__(self):
-        return u'<Poster: {} {}x{}>'.format(self.kind, self.width, self.height)
+        return '<Poster: {} {}x{}>'.format(self.kind, self.width, self.height)
 
 
 class CuratedFeed(VRVResponse):
@@ -634,7 +633,7 @@ class CuratedFeed(VRVResponse):
         self.feed_type = response.get('feed_type')
 
     def __repr__(self):
-        return u'<vrvlib CuratedFeed: {}:{}>'.format(self.title, self.feed_type)
+        return '<vrvlib CuratedFeed: {}:{}>'.format(self.title, self.feed_type)
 
 
 class UnknownType(VRVResponse):
@@ -648,7 +647,7 @@ class UnknownType(VRVResponse):
         self.api_class = response.get('__class__', 'no class')
 
     def __repr__(self):
-        return u'<vrvlib UnknownType: {}:{}>'.format(self.title, self.api_class)
+        return '<vrvlib UnknownType: {}:{}>'.format(self.title, self.api_class)
 
 
 def vrv_json_hook(response):
