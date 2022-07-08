@@ -13,6 +13,7 @@ import xbmc
 import xbmcaddon
 import xbmcplugin
 import xbmcgui
+import xbmcvfs
 
 from resources.lib.vrvlib import VRV
 from xbmcgui import ListItem, Dialog
@@ -28,9 +29,9 @@ _plugId = "plugin.video.vrv"
 __plugin__ = "VRV"
 __version__ = "0.2.5"
 __settings__ = xbmcaddon.Addon(id=_plugId)
-__profile__ = xbmc.translatePath(__settings__.getAddonInfo('profile'))
+__profile__ = xbmcvfs.translatePath(__settings__.getAddonInfo('profile'))
 
-__addon_path__ = xbmc.translatePath(__settings__.getAddonInfo('path'))
+__addon_path__ = xbmcvfs.translatePath(__settings__.getAddonInfo('path'))
 
 artwork_temp = os.path.join(__profile__, 'art_temp')
 sub_temp = os.path.join(__profile__, 'sub_temp')
